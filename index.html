@@ -1522,7 +1522,7 @@ var content=document.getElementById("walletContent");
 if(!screen||!content)return;
 var pts=0;try{pts=parseInt(localStorage.getItem("sliceDelightPts"))||0}catch(e){}
 var user=AUTH.getUser()||{};
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
 var userOrders=orders.filter(function(o){return o.phone===(user.phone||"")});
 var referralCode=(user.name||"SLICE").substring(0,5).toUpperCase()+Math.floor(100+Math.random()*900);
 try{var rc=localStorage.getItem("sliceDelightReferral");if(!rc){localStorage.setItem("sliceDelightReferral",referralCode)}else{referralCode=rc}}catch(e){}
@@ -1712,7 +1712,7 @@ setTimeout(function(){
 var session=null;
 try{var ss=JSON.parse(localStorage.getItem("sliceDelightSession"));if(ss&&ss.expiresAt>Date.now())session=ss}catch(e){}
 if(session){
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
 var lastDelivered=null;
 for(var i=orders.length-1;i>=0;i--){
 if(orders[i].status==="delivered"&&orders[i].phone===session.user.phone){
@@ -2061,7 +2061,7 @@ var screen=document.getElementById("profileScreen");
 var content=document.getElementById("profileContent");
 if(!screen||!content)return;
 var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
 var userOrders=orders.filter(function(o){return o.phone===user.phone});
 var totalSpent=0;userOrders.forEach(function(o){totalSpent+=o.total||0});
 var initials=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
@@ -2135,7 +2135,7 @@ var DATA=[
 var CATS=[{k:"all",e:"🍽️",l:"All"},{k:"bestseller",e:"🔥",l:"Bestsellers"},{k:"test",e:"🧪",l:"Test"},{k:"pizza",e:"🍕",l:"Pizza"},{k:"burger",e:"🍔",l:"Burgers"},{k:"sandwich",e:"🥪",l:"Sandwich"},{k:"pasta",e:"🍝",l:"Pasta"},{k:"maggie",e:"🍜",l:"Maggie"},{k:"coffee",e:"☕",l:"Coffee"},{k:"shake",e:"🥤",l:"Shakes"},{k:"snack",e:"🍟",l:"Snacks"},{k:"dessert",e:"🍫",l:"Dessert"}];
 
 var items=DATA;
-try{var saved=JSON.parse(localStorage.getItem("sliceDelightMenu"));if(saved&&saved.length){items=saved.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}})}}catch(e){}
+try{var saved=JSON.parse(localStorage.getItem("sd_menu"));if(saved&&saved.length){items=saved.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}})}}catch(e){}
 
 var cart={},curCat="all",oType="dinein",pMethod="upi",promoCode=null,promoDisc=0;
 var orderN=parseInt(localStorage.getItem("sliceDelightOrderN")||"100");
@@ -2313,8 +2313,8 @@ try{var ep=parseInt(localStorage.getItem("sliceDelightPts"))||0;localStorage.set
 var orderObj={id:oid,name:user.name,phone:user.phone,type:oType,table:tbl,address:addr,payment:pMethod,promo:promoCode||"",promoDisc:c.disc,items:JSON.parse(JSON.stringify(cart)),itemNames:{},subtotal:c.sub,gst:c.gst,delivery:c.del,discount:c.disc,total:c.total,notes:notes,status:"pending",waitTime:"",placedAt:now,acceptedAt:"",preparingAt:"",outAt:"",deliveredAt:"",seenByAdmin:false,ptsEarned:pts};
 for(var k in cart){if(cart.hasOwnProperty(k)){var it=find(k);if(it)orderObj.itemNames[k]=it.name}}
 
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
-orders.push(orderObj);localStorage.setItem("sliceDelightOrders",JSON.stringify(orders));
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
+orders.push(orderObj);localStorage.setItem("sd_orders",JSON.stringify(orders));
 activeOrderId=oid;localStorage.setItem("sliceDelightActiveOrder",oid);
 
 var msg="🆕 ORDER — "+oid+"\n"+user.name+"\n+91"+user.phone+"\n"+(oType==="dinein"?"Dine In Table "+tbl:"Delivery: "+addr)+"\nPayment: "+(pMethod==="upi"?"UPI":"Counter")+"\n---\n";
@@ -2342,7 +2342,7 @@ function startStatusPolling(){if(statusPollTimer)clearInterval(statusPollTimer);
 
 function updateTrackerDisplay(){
 if(!activeOrderId)return;
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
 var order=null;for(var i=0;i<orders.length;i++){if(orders[i].id===activeOrderId){order=orders[i];break}}
 if(!order)return;
 var status=order.status||"pending";
@@ -2371,7 +2371,7 @@ function closeHistory(){document.getElementById("historyOverlay").classList.remo
 
 function renderHistory(){
 var body=document.getElementById("historyBody");
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
 var user=AUTH.getUser();var phone=(user&&user.phone)||"";
 var filtered=phone?orders.filter(function(o){return o.phone===phone}):orders;
 filtered.sort(function(a,b){return new Date(b.placedAt)-new Date(a.placedAt)});
@@ -2387,7 +2387,7 @@ h+='<button class="reorder-btn" onclick="S.reorder(\''+order.id+'\')"><i class="
 }
 
 function reorder(orderId){
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sliceDelightOrders"))||[]}catch(e){}
+var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
 var order=null;for(var i=0;i<orders.length;i++){if(orders[i].id===orderId){order=orders[i];break}}
 if(!order)return;var added=0;
 for(var iid in order.items){if(order.items.hasOwnProperty(iid)){var it=find(iid);if(it&&it.on!==false){cart[iid]=order.items[iid];added++}}}
@@ -2424,8 +2424,8 @@ function init(){
 loadTheme();render();renderBestsellers();updateBadges();
 if(activeOrderId)startStatusPolling();
 window.addEventListener("storage",function(e){
-if(e.key==="sliceDelightOrders")updateTrackerDisplay();
-if(e.key==="sliceDelightMenu"){try{var nm=JSON.parse(e.newValue);if(nm&&nm.length){items=nm.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}});render();renderBestsellers()}}catch(ex){}}
+if(e.key==="sd_orders")updateTrackerDisplay();
+if(e.key==="sd_menu"){try{var nm=JSON.parse(e.newValue);if(nm&&nm.length){items=nm.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}});render();renderBestsellers()}}catch(ex){}}
 if(e.key==="sliceDelightSession"){try{var ss=JSON.parse(e.newValue);if(ss&&ss.user)AUTH.updateNavUser(ss.user);else AUTH.updateNavUser(null)}catch(ex){}}
 });
 AUTH.init();APP.init();
@@ -2438,4 +2438,5 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
 </script>
 </body>
 </html>
+
 </head>
