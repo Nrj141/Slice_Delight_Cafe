@@ -2475,6 +2475,7 @@ function applyPromo(){
  var fp=fbp[i];
  if(!fp||!fp.code)continue;
  var fpCode=(fp.code||"").toUpperCase();
+  var fpCode=(fp.code||"").toUpperCase();
  if(fpCode===code&&fp.active!==false){
           if(fp.until&&new Date(fp.until)<new Date())continue;
           var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
@@ -2736,156 +2737,149 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
 </script>
 <script>
 (function(){
-  var db;
-  try{db=firebase.database()}catch(e){console.error("FB not ready:",e);return}
-   var _origSet=Storage.prototype.setItem;
+ var db;
+ try{db=firebase.database()}catch(e){console.error("FB not ready:",e);return}
+ var _origSet=Storage.prototype.setItem;
  var _storeOpen=true;
  var _isFBSyncing=false;
+ var _dineInEnabled=true;
 
- /* Push orders to Firebase when localStorage changes */
  Storage.prototype.setItem=function(key,value){
- _origSet.call(this,key,value);
- if(_isFBSyncing)return;
- _isFBSyncing=true;
- if(key==="sd_orders"){
-      try{
-        var arr=JSON.parse(value)||[];
-        var fbData={};
-        arr.forEach(function(o){
-          var id=(o.id||o.orderId||"ord_"+Date.now()).replace(/[.#$\/\[\]]/g,"_");
-          fbData[id]=o;
-        });
-        db.ref("orders").set(fbData);
-       }catch(e){console.error("Order sync err:",e)}
- }
- _isFBSyncing=false;
+  _origSet.call(this,key,value);
+  if(_isFBSyncing)return;
+  _isFBSyncing=true;
+  if(key==="sd_orders"){
+   try{
+    var arr=JSON.parse(value)||[];
+    var fbData={};
+    arr.forEach(function(o){
+     var id=(o.id||o.orderId||"ord_"+Date.now()).replace(/[.#$\/\[\]]/g,"_");
+     fbData[id]=o;
+    });
+    db.ref("orders").set(fbData);
+   }catch(e){console.error("Order sync err:",e)}
+  }
+  _isFBSyncing=false;
  };
 
-  /* ── MENU: Firebase → update items + re-render ── */
  db.ref("menu").on("value",function(snap){
   var d=snap.val();
   if(!d)return;
   var arr=Array.isArray(d)?d:Object.values(d);
   if(!arr.length)return;
   _origSet.call(localStorage,"sliceDelightMenu",JSON.stringify(arr));
-  /* Force page to pick up new menu */
   try{
-    window.dispatchEvent(new StorageEvent("storage",{
-      key:"sliceDelightMenu",
-      newValue:JSON.stringify(arr),
-      storageArea:localStorage
-    }));
-  }catch(e){
-    /* Fallback: reload page */
-    location.reload();
-  }
-});
-  /* ── CONFIG: store status, dine-in, delivery charges ── */
-  db.ref("config").on("value",function(snap){
-    var d=snap.val();
-    if(!d||typeof d!=="object")return;
-    _origSet.call(localStorage,"sliceDelightSettings",JSON.stringify(d));
-    _storeOpen=d.storeOpen!==false;
-
-    /* Store closed banner */
-    if(!_storeOpen){
-      if(!document.getElementById("storeClosedOverlay")){
-        var ov=document.createElement("div");
-        ov.id="storeClosedOverlay";
-        ov.style.cssText="position:fixed;top:0;left:0;right:0;z-index:800;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:14px 24px;text-align:center;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(239,68,68,.4)";
-        ov.innerHTML='<i class="fas fa-store-slash"></i> Restaurant is currently closed. We will be back soon!';
-        document.body.appendChild(ov);
-      }
-    }else{
-      var ex=document.getElementById("storeClosedOverlay");
-      if(ex)ex.parentNode.removeChild(ex);
-    }
-
-    /* Dine-in toggle */
-     if(d.dineInEnabled===false){
- var diBtn=document.querySelector('.type-btn[onclick*="dinein"]');
- if(diBtn)diBtn.style.display="none";
- var delBtn=document.querySelector('.type-btn[onclick*="delivery"]');
- if(delBtn&&!delBtn.classList.contains("on")){delBtn.click()}
- var gt=document.getElementById("gTable");if(gt)gt.style.display="none";
- var ga=document.getElementById("gAddr");if(ga)ga.classList.add("show");
- }else{
- var diBtn2=document.querySelector('.type-btn[onclick*="dinein"]');
- if(diBtn2)diBtn2.style.display="";
- }
-  });
-
-  /* ── PROMOS: Firebase → localStorage ── */
-   db.ref("promos").on("value",function(snap){
- var d=snap.val();
- if(!d)return;
- var arr=Array.isArray(d)?d:Object.values(d);
- _origSet.call(localStorage,"sd_promos",JSON.stringify(arr));
- }); 
-
-  /* ── LOYALTY: Firebase → localStorage ── */
-   db.ref("loyalty").on("value",function(snap){
- var d=snap.val();
- if(d&&typeof d==="object"){
- _origSet.call(localStorage,"sd_loy",JSON.stringify(d));
- if(typeof S!=="undefined"&&S.toast){/* silently updated */}
- }
+   window.dispatchEvent(new StorageEvent("storage",{
+    key:"sliceDelightMenu",
+    newValue:JSON.stringify(arr),
+    storageArea:localStorage
+   }));
+  }catch(e){location.reload()}
  });
 
-  /* ── ZONES: Firebase → localStorage ── */
-  db.ref("zones").on("value",function(snap){
-    var d=snap.val();
-    if(d&&Array.isArray(d))_origSet.call(localStorage,"sd_zones",JSON.stringify(d));
+ db.ref("config").on("value",function(snap){
+  var d=snap.val();
+  if(!d||typeof d!=="object")return;
+  _origSet.call(localStorage,"sliceDelightSettings",JSON.stringify(d));
+  _storeOpen=d.storeOpen!==false;
+  _dineInEnabled=d.dineInEnabled!==false;
+
+  if(!_storeOpen){
+   if(!document.getElementById("storeClosedOverlay")){
+    var ov=document.createElement("div");
+    ov.id="storeClosedOverlay";
+    ov.style.cssText="position:fixed;top:0;left:0;right:0;z-index:800;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:14px 24px;text-align:center;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(239,68,68,.4)";
+    ov.innerHTML='<i class="fas fa-store-slash"></i> Restaurant is currently closed. We will be back soon!';
+    document.body.appendChild(ov);
+   }
+  }else{
+   var ex=document.getElementById("storeClosedOverlay");
+   if(ex)ex.parentNode.removeChild(ex);
+  }
+
+  if(!_dineInEnabled){
+   var diBtn=document.querySelector('.type-btn[onclick*="dinein"]');
+   if(diBtn){diBtn.style.display="none"}
+   var delBtn=document.querySelector('.type-btn[onclick*="delivery"]');
+   if(delBtn&&!delBtn.classList.contains("on")){delBtn.click()}
+   var gt=document.getElementById("gTable");if(gt)gt.style.display="none";
+   var ga=document.getElementById("gAddr");if(ga)ga.classList.add("show");
+  }else{
+   var diBtn2=document.querySelector('.type-btn[onclick*="dinein"]');
+   if(diBtn2)diBtn2.style.display="";
+  }
+ });
+
+ db.ref("promos").on("value",function(snap){
+  var d=snap.val();
+  if(!d)return;
+  var arr;
+  if(Array.isArray(d)){arr=d}
+  else if(typeof d==="object"){arr=Object.values(d)}
+  else{return}
+  arr=arr.filter(function(x){return x&&x.code});
+  _origSet.call(localStorage,"sd_promos",JSON.stringify(arr));
+  console.log("Promos synced from Firebase:",arr.length,"codes");
+ });
+
+ db.ref("loyalty").on("value",function(snap){
+  var d=snap.val();
+  if(!d||typeof d!=="object")return;
+  _origSet.call(localStorage,"sd_loy",JSON.stringify(d));
+  console.log("Loyalty synced from Firebase:",JSON.stringify(d));
+ });
+
+ db.ref("zones").on("value",function(snap){
+  var d=snap.val();
+  if(!d)return;
+  var arr=Array.isArray(d)?d:Object.values(d);
+  _origSet.call(localStorage,"sd_zones",JSON.stringify(arr));
+ });
+
+ var _origAdd=S.add;
+ S.add=function(id){
+  if(!_storeOpen){S.toast("Sorry, the restaurant is currently closed");return}
+  _origAdd.call(this,id);
+ };
+ var _origGoCheckout=S.goCheckout;
+ S.goCheckout=function(){
+  if(!_storeOpen){S.toast("Sorry, the restaurant is currently closed");return}
+  _origGoCheckout.apply(this,arguments);
+ };
+ var _origPlaceOrder=S.placeOrder;
+ S.placeOrder=function(){
+  if(!_storeOpen){S.toast("Restaurant is currently closed");return}
+  _origPlaceOrder.apply(this,arguments);
+ };
+
+ setInterval(function(){
+  var activeId=localStorage.getItem("sliceDelightActiveOrder");
+  if(!activeId)return;
+  var safeId=activeId.replace(/[.#$\/\[\]]/g,"_");
+  db.ref("orders/"+safeId).once("value",function(snap){
+   var fb=snap.val();
+   if(!fb)return;
+   try{
+    var local=JSON.parse(localStorage.getItem("sd_orders"))||[];
+    var changed=false;
+    for(var i=0;i<local.length;i++){
+     if((local[i].id||local[i].orderId)===(fb.id||fb.orderId)){
+      if(fb.status&&fb.status!==local[i].status){
+       local[i].status=fb.status;
+       local[i].waitTime=fb.waitTime||"";
+       local[i].acceptedAt=fb.acceptedAt||"";
+       local[i].deliveredAt=fb.deliveredAt||"";
+       changed=true;
+      }
+      break;
+     }
+    }
+    if(changed)_origSet.call(localStorage,"sd_orders",JSON.stringify(local));
+   }catch(e){}
   });
+ },3000);
 
-  /* ── Block ordering when store is closed ── */
-  var _origAdd=S.add;
-  S.add=function(id){
-    if(!_storeOpen){S.toast("Sorry, the restaurant is currently closed");return}
-    _origAdd.call(this,id);
-  };
-
-  var _origGoCheckout=S.goCheckout;
-  S.goCheckout=function(){
-    if(!_storeOpen){S.toast("Sorry, the restaurant is currently closed");return}
-    _origGoCheckout.apply(this,arguments);
-  };
-
-  var _origPlaceOrder=S.placeOrder;
-  S.placeOrder=function(){
-    if(!_storeOpen){S.toast("Restaurant is currently closed");return}
-    _origPlaceOrder.apply(this,arguments);
-  };
-
-  /* ── ORDER STATUS from Firebase (replaces polling) ── */
-  setInterval(function(){
-    var activeId=localStorage.getItem("sliceDelightActiveOrder");
-    if(!activeId)return;
-    var safeId=activeId.replace(/[.#$\/\[\]]/g,"_");
-    db.ref("orders/"+safeId).once("value",function(snap){
-      var fb=snap.val();
-      if(!fb)return;
-      try{
-        var local=JSON.parse(localStorage.getItem("sd_orders"))||[];
-        var changed=false;
-        for(var i=0;i<local.length;i++){
-          if((local[i].id||local[i].orderId)===(fb.id||fb.orderId)){
-            if(fb.status&&fb.status!==local[i].status){
-              local[i].status=fb.status;
-              local[i].waitTime=fb.waitTime||"";
-              local[i].acceptedAt=fb.acceptedAt||"";
-              local[i].deliveredAt=fb.deliveredAt||"";
-              changed=true;
-            }
-            break;
-          }
-        }
-        if(changed)_origSet.call(localStorage,"sd_orders",JSON.stringify(local));
-      }catch(e){}
-    });
-  },3000);
-
-  console.log("Index Firebase FULL SYNC active");
+ console.log("Index Firebase FULL SYNC active");
 })();
 </script>
 </body>
