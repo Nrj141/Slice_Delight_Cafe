@@ -1689,7 +1689,8 @@ var AUTH = (function () {
     function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
     function isValidIndianMobile(p) { if(!p||p.length!==10)return false; var f=p.charAt(0); return f>="6"&&f<="9"; }
     function formatPhone(p) { if(!p||p.length!==10)return p; return p.substring(0,5)+" "+p.substring(5); }
-    function generateOTP() { return String(Math.floor(100000+Math.random()*900000)); }
+     function generateOTP() { return String(Math.floor(100000+Math.random()*900000)); }
+ function hashOTP(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return'H'+Math.abs(h).toString(36)}
     function sanitizeEmailKey(email) { return email.replace(/[.#$\/\[\]@]/g,"_"); }
 
     function haptic(t) {
@@ -1842,8 +1843,14 @@ var AUTH = (function () {
     /* ══════════════════════════════════════
        SEND OTP — Email-based via Firebase RTDB
        ══════════════════════════════════════ */
-    function sendOTP() {
-    var nameInput = document.getElementById("authNameInput");
+     var _lastOTPTime=0;
+ var _otpSendCount=0;
+ function sendOTP() {
+ var _now=Date.now();
+ if(_now-_lastOTPTime<30000&&_otpSendCount>0){if(typeof S!=="undefined")S.toast("Please wait 30 seconds before requesting another OTP");return}
+ if(_otpSendCount>=5){if(typeof S!=="undefined")S.toast("Too many OTP requests. Please try again later.");return}
+ _lastOTPTime=_now;_otpSendCount++;
+ var nameInput = document.getElementById("authNameInput");
     var emailInput = document.getElementById("authEmailInput");
     var phoneInput = document.getElementById("authPhoneInput");
     var sendBtn = document.getElementById("authSendBtn");
@@ -1894,13 +1901,13 @@ var AUTH = (function () {
     var emailKey = sanitizeEmailKey(authEmail);
 
     // Store OTP in Firebase for verification
-    var otpData = {
-        code: otp,
-        email: authEmail,
-        name: authName,
-        expiresAt: Date.now() + 5 * 60 * 1000,
-        createdAt: Date.now()
-    };
+     var otpData = {
+ codeHash: hashOTP(otp),
+ email: authEmail,
+ name: authName,
+ expiresAt: Date.now() + 5 * 60 * 1000,
+ createdAt: Date.now()
+ };
 
     // Save to Firebase first
     db.ref("emailOtps/" + emailKey).set(otpData)
@@ -1974,7 +1981,7 @@ var AUTH = (function () {
             var data=snap.val();
             if(!data){throw{message:"OTP not found. Please resend."};}
             if(Date.now()>data.expiresAt){throw{message:"OTP expired. Please resend."};}
-            if(data.code!==entered){throw{message:"Incorrect OTP. Please try again."};}
+             if(data.codeHash!==hashOTP(entered)){throw{message:"Incorrect OTP. Please try again."};}
 
             // SUCCESS — OTP matches!
             db.ref("emailOtps/"+emailKey).remove();
@@ -2027,13 +2034,13 @@ var AUTH = (function () {
     generatedOTP = otp;
     var emailKey = sanitizeEmailKey(authEmail);
 
-    var otpData = {
-        code: otp,
-        email: authEmail,
-        name: authName,
-        expiresAt: Date.now() + 5 * 60 * 1000,
-        createdAt: Date.now()
-    };
+     var otpData = {
+ codeHash: hashOTP(otp),
+ email: authEmail,
+ name: authName,
+ expiresAt: Date.now() + 5 * 60 * 1000,
+ createdAt: Date.now()
+ };
 
     db.ref("emailOtps/" + emailKey).set(otpData)
         .then(function () {
@@ -2205,6 +2212,7 @@ function saveCart(){try{localStorage.setItem("sliceDelightCart",JSON.stringify(c
 function saveFavs(){try{localStorage.setItem("sliceDelightFavs",JSON.stringify(favorites))}catch(e){}}
 function saveReviews(){try{localStorage.setItem("sliceDelightReviews",JSON.stringify(reviews))}catch(e){}}
 function saveAddrs(){try{localStorage.setItem("sliceDelightAddrs",JSON.stringify(savedAddresses))}catch(e){}}
+function escHTML(s){var d=document.createElement('div');d.appendChild(document.createTextNode(s||''));return d.innerHTML}
 function find(id){for(var i=0;i<items.length;i++){if(items[i].id===id)return items[i]}return null}
 function cartQty(){var c=0;for(var k in cart){if(cart.hasOwnProperty(k))c+=cart[k]}return c}
 function subtotal(){var t=0;for(var k in cart){if(cart.hasOwnProperty(k)){var it=find(k);if(it)t+=it.price*cart[k]}}return t}
@@ -2234,7 +2242,7 @@ h+='<button class="card-heart'+(isFav?' liked':'')+'" onclick="S.toggleFav(\''+i
 if(it.prep)h+='<div class="card-time"><i class="fas fa-clock"></i> '+it.prep+' min</div>';
 if(rat.cnt>0)h+='<div class="card-rating"><i class="fas fa-star"></i> '+rat.avg+'</div>';
 h+='</div><div class="card-body"><div class="card-veg"><span class="card-veg-dot"></span> PURE VEG</div>';
-h+='<div class="card-cat">'+it.cat+'</div><div class="card-title">'+it.name+'</div><div class="card-desc">'+(it.desc||"")+'</div>';
+h+='<div class="card-cat">'+it.cat+'</div><div class="card-title">'+escHTML(it.name)+'</div><div class="card-desc">'+escHTML(it.desc||"")+'</div>';
 h+='<div class="card-foot"><span class="card-price">₹'+it.price+'</span>';
 if(!off){h+='<div class="card-add-area" onclick="event.stopPropagation()"><div class="card-qty'+(qty>0?' on':'')+'" id="'+prefix+'q_'+it.id+'"><button onclick="S.chg(\''+it.id+'\',-1)">-</button><span id="'+prefix+'n_'+it.id+'">'+qty+'</span><button onclick="S.chg(\''+it.id+'\',1)">+</button></div><button class="card-add-btn'+(qty>0?' gone':'')+'" id="'+prefix+'a_'+it.id+'" onclick="S.add(\''+it.id+'\')"><i class="fas fa-plus"></i> ADD</button></div>'}
 h+='</div></div></div>';return h;
@@ -2292,7 +2300,7 @@ function renderDrawer(){
  var keys=[];for(var k in cart){if(cart.hasOwnProperty(k)&&cart[k]>0)keys.push(k)}
  if(!keys.length){el.innerHTML='<div class="dr-empty"><i class="fas fa-bag-shopping"></i><p>Your cart is empty</p></div>';ft.style.display="none";fm.style.display="none";return}
  ft.style.display="block";fm.style.display="block";
- var h="";keys.forEach(function(id){var it=find(id),qty=cart[id];if(!it)return;h+='<div class="ci"><img src="'+it.img+'" onerror="this.src=\''+FB+'\'"><div class="ci-info"><div class="ci-name">'+it.name+'</div><div class="ci-price">\u20b9'+(it.price*qty)+'</div></div><div class="ci-ctrl"><button onclick="S.chg(\''+id+'\',-1)">-</button><span>'+qty+'</span><button onclick="S.chg(\''+id+'\',1)">+</button></div></div>'});
+ var h="";keys.forEach(function(id){var it=find(id),qty=cart[id];if(!it)return;h+='<div class="ci"><img src="'+it.img+'" onerror="this.src=\''+FB+'\'"><div class="ci-info"><div class="ci-name">'+escHTML(it.name)+'</div><div class="ci-price">\u20b9'+(it.price*qty)+'</div></div><div class="ci-ctrl"><button onclick="S.chg(\''+id+'\',-1)">-</button><span>'+qty+'</span><button onclick="S.chg(\''+id+'\',1)">+</button></div></div>'});
  el.innerHTML=h;var c=totals();
  document.getElementById("dSub").textContent="\u20b9"+c.sub;
  document.getElementById("dGst").textContent="\u20b9"+c.gst;
@@ -2311,7 +2319,7 @@ function goCheckout(){
 if(!AUTH.isLoggedIn()){closeCart();AUTH.show();toast("Please sign in to order");return}
 if(cartQty()===0){toast("Cart is empty!");return}
 if(oType==="dinein"){var t=document.getElementById("iTable");if(t&&!t.value){toast("Select table");return}}
-if(oType==="delivery"){var a=document.getElementById("iAddr");if(!a||!a.value.trim()){toast("Enter delivery address");return}}
+if(oType==="delivery"){var a=document.getElementById("iAddr");if(!a||!a.value.trim()||a.value.trim().length<10){toast("Please enter a complete delivery address (min 10 characters)");return}}
 closeCart();promoCode=null;promoDisc=0;buildCk();
 document.getElementById("ckScreen").classList.add("open");document.body.style.overflow="hidden";
 }
@@ -2641,13 +2649,16 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
 (function(){
   var db;
   try{db=firebase.database()}catch(e){console.error("FB not ready:",e);return}
-  var _origSet=Storage.prototype.setItem;
-  var _storeOpen=true;
+   var _origSet=Storage.prototype.setItem;
+ var _storeOpen=true;
+ var _isFBSyncing=false;
 
-  /* Push orders to Firebase when localStorage changes */
-  Storage.prototype.setItem=function(key,value){
-    _origSet.call(this,key,value);
-    if(key==="sd_orders"){
+ /* Push orders to Firebase when localStorage changes */
+ Storage.prototype.setItem=function(key,value){
+ _origSet.call(this,key,value);
+ if(_isFBSyncing)return;
+ _isFBSyncing=true;
+ if(key==="sd_orders"){
       try{
         var arr=JSON.parse(value)||[];
         var fbData={};
@@ -2656,9 +2667,10 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
           fbData[id]=o;
         });
         db.ref("orders").set(fbData);
-      }catch(e){console.error("Order sync err:",e)}
-    }
-  };
+       }catch(e){console.error("Order sync err:",e)}
+ }
+ _isFBSyncing=false;
+ };
 
   /* ── MENU: Firebase → update items + re-render ── */
  db.ref("menu").on("value",function(snap){
