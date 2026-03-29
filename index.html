@@ -2187,7 +2187,7 @@ var DATA=[
 var CATS=[{k:"all",e:"🍽️",l:"All"},{k:"bestseller",e:"🔥",l:"Bestsellers"},{k:"test",e:"🧪",l:"Test"},{k:"pizza",e:"🍕",l:"Pizza"},{k:"burger",e:"🍔",l:"Burgers"},{k:"sandwich",e:"🥪",l:"Sandwich"},{k:"pasta",e:"🍝",l:"Pasta"},{k:"maggie",e:"🍜",l:"Maggie"},{k:"coffee",e:"☕",l:"Coffee"},{k:"shake",e:"🥤",l:"Shakes"},{k:"snack",e:"🍟",l:"Snacks"},{k:"dessert",e:"🍫",l:"Dessert"}];
 
 var items=DATA;
-try{var saved=JSON.parse(localStorage.getItem("sliceDelightMenu"));if(saved&&saved.length){items=saved.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}})}}catch(e){},
+try{var saved=JSON.parse(localStorage.getItem("sliceDelightMenu"));if(saved&&saved.length){items=saved.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}})}}catch(e){}
 
 var cart={},curCat="all",oType="dinein",pMethod="upi",promoCode=null,promoDisc=0;
 var orderN=parseInt(localStorage.getItem("sliceDelightOrderN")||"100");
