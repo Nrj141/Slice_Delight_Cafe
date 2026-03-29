@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>
+  emailjs.init("UjQvuPsrAoOisDzBL");
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Slice Delight — Pizza, Burgers & More | Pune</title>
@@ -847,6 +851,9 @@ body{padding-bottom:var(--bot-h)}
 .auth-title{font-size:24px}
 }
 </style>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -900,13 +907,21 @@ body{padding-bottom:var(--bot-h)}
 <span class="auth-brand-name">Slice Delight</span>
 </div>
 <div class="auth-title">Welcome to<br><span style="background:linear-gradient(135deg,var(--accent),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent">Slice Delight</span></div>
-<div class="auth-subtitle">Sign in with your mobile number to order delicious food, track orders & earn loyalty points 🎉</div>
+<div class="auth-subtitle">Sign in with your email to order delicious food, track orders &amp; earn loyalty points 🎉</div>
 </div>
 <div class="auth-card" id="authCard">
 <div id="authStep1">
 <div class="auth-name-wrap">
 <label class="auth-name-label">Your Name</label>
 <input type="text" class="auth-name-input" id="authNameInput" placeholder="Enter your full name" autocomplete="name">
+</div>
+<div class="auth-phone-wrap">
+<label class="auth-phone-label">Email Address</label>
+<div class="auth-phone-row" id="authEmailRow">
+<div class="auth-country-code" style="border-right:1px solid var(--border)"><i class="fas fa-envelope" style="font-size:18px;color:var(--accent)"></i></div>
+<input type="email" class="auth-phone-input" id="authEmailInput" placeholder="your@email.com" autocomplete="email" style="letter-spacing:0;font-size:15px;font-weight:600">
+<div class="auth-phone-check" id="authEmailCheck"></div>
+</div>
 </div>
 <div class="auth-phone-wrap">
 <label class="auth-phone-label">Mobile Number</label>
@@ -924,8 +939,8 @@ body{padding-bottom:var(--bot-h)}
 </div>
 <div class="auth-otp-section" id="authStep2">
 <div class="auth-otp-info">
-<div class="auth-otp-info-icon"><i class="fas fa-shield-halved"></i></div>
-<div class="auth-otp-info-text">OTP sent to <strong id="authOtpPhone">+91 XXXXXXXXXX</strong></div>
+<div class="auth-otp-info-icon"><i class="fas fa-envelope"></i></div>
+<div class="auth-otp-info-text">OTP sent to <strong id="authOtpPhone">email@example.com</strong></div>
 <button class="auth-otp-info-edit" onclick="AUTH.editPhone()"><i class="fas fa-pen"></i> Edit</button>
 </div>
 <div class="auth-otp-label">Enter 6-digit verification code</div>
@@ -938,11 +953,11 @@ body{padding-bottom:var(--bot-h)}
 <input type="tel" class="otp-input" maxlength="1" inputmode="numeric" data-idx="5">
 </div>
 <div class="otp-timer-row">
-<span class="otp-timer" id="otpTimer">Resend OTP in <span class="countdown" id="otpCountdown">30</span>s</span>
+<span class="otp-timer" id="otpTimer">Resend OTP in <span class="countdown" id="otpCountdown">60</span>s</span>
 <button class="otp-resend" id="otpResendBtn" onclick="AUTH.resendOTP()">Resend OTP</button>
 </div>
 <button class="auth-verify-btn" id="authVerifyBtn" onclick="AUTH.verifyOTP()" disabled>
-<span class="btn-text"><i class="fas fa-shield-check"></i> Verify & Continue</span>
+<span class="btn-text"><i class="fas fa-shield-check"></i> Verify &amp; Continue</span>
 <div class="btn-loader"></div>
 </button>
 </div>
@@ -960,7 +975,7 @@ body{padding-bottom:var(--bot-h)}
 <div class="auth-trust-item"><i class="fas fa-leaf"></i> 100% Pure Veg</div>
 </div>
 <div class="auth-footer">
-<p>By continuing, you agree to our <a href="#">Terms</a> & <a href="#">Privacy Policy</a></p>
+<p>By continuing, you agree to our <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a></p>
 </div>
 </div>
 </div>
@@ -1196,7 +1211,6 @@ body{padding-bottom:var(--bot-h)}
 <div class="suc-id" id="sucId">SD-001</div>
 <div class="suc-extra">
 <span><i class="fas fa-clock"></i> <span id="sucWaitText">Waiting for restaurant to accept...</span></span>
-<span><i class="fab fa-whatsapp"></i> Confirmation on WhatsApp</span>
 <span><i class="fas fa-coins"></i> <span id="sucPtsText">+0 loyalty points earned!</span></span>
 </div>
 <div id="sucStatusArea" style="margin-bottom:20px"></div>
@@ -1627,157 +1641,522 @@ updateTrackMap:updateTrackMap
 
 <script>
 "use strict";
-/*================================================================
-  AUTH MODULE
-================================================================*/
-var AUTH=(function(){
-var otpGenerated="";var otpTimer=null;var otpSeconds=30;
-var authPhone="";var authName="";var isVerified=false;var sessionToken=null;
-var SESSION_KEY="sliceDelightSession";var USER_KEY="sliceDelightUser";var PTS_KEY="sliceDelightPts";
-var CARRIERS={"70":"Vi","71":"Vi","72":"Idea","73":"BSNL","74":"BSNL","75":"Jio","76":"Jio","77":"Jio","78":"Jio","79":"Jio","80":"BSNL","81":"Jio","82":"Airtel","83":"Jio","84":"Vi","85":"Jio","86":"Vi","87":"MTNL","88":"Vi","89":"Jio","90":"Airtel","91":"BSNL","92":"Airtel","93":"Airtel","94":"BSNL","95":"Airtel","96":"Jio","97":"Airtel","98":"Airtel","99":"Airtel"};
-function detectCarrier(p){if(!p||p.length<2)return"";return CARRIERS[p.substring(0,2)]||""}
-function getCarrierIcon(c){if(c==="Jio")return"fas fa-signal";if(c==="Airtel")return"fas fa-wifi";if(c==="Vi"||c==="Idea")return"fas fa-tower-broadcast";if(c==="BSNL"||c==="MTNL")return"fas fa-satellite-dish";return"fas fa-mobile-screen"}
-function isValidIndianMobile(p){if(!p||p.length!==10)return false;var f=p.charAt(0);return f>='6'&&f<='9'}
-function formatPhone(p){if(!p||p.length!==10)return p;return p.substring(0,5)+" "+p.substring(5)}
-function generateOTP(){var o="";for(var i=0;i<6;i++)o+=Math.floor(Math.random()*10).toString();return o}
-function haptic(t){if(navigator.vibrate){if(t==="light")navigator.vibrate(10);else if(t==="medium")navigator.vibrate(25);else if(t==="error")navigator.vibrate([100,50,100,50,100]);else if(t==="success")navigator.vibrate([50,100,50])}}
-function fireConfetti(){var colors=["#FF6B35","#F5A623","#22c55e","#3b82f6","#a855f7","#ef4444"];for(var i=0;i<40;i++){var el=document.createElement("div");el.className="confetti-piece";el.style.left=Math.random()*100+"vw";el.style.background=colors[Math.floor(Math.random()*colors.length)];el.style.animationDuration=(2+Math.random()*2)+"s";el.style.animationDelay=Math.random()*0.5+"s";el.style.borderRadius=["50%","0"][Math.floor(Math.random()*2)];el.style.width=(6+Math.random()*8)+"px";el.style.height=(6+Math.random()*8)+"px";document.body.appendChild(el);setTimeout(function(e){if(e.parentNode)e.parentNode.removeChild(e)},3500,el)}}
-function saveSession(user){var session={user:user,token:"SD_"+Date.now()+"_"+Math.random().toString(36).substr(2,9),createdAt:Date.now(),expiresAt:Date.now()+(7*24*60*60*1000)};try{localStorage.setItem(SESSION_KEY,JSON.stringify(session));localStorage.setItem(USER_KEY,JSON.stringify(user))}catch(e){}sessionToken=session.token;return session}
-function getSession(){try{var s=JSON.parse(localStorage.getItem(SESSION_KEY));if(s&&s.expiresAt>Date.now()){sessionToken=s.token;return s}localStorage.removeItem(SESSION_KEY)}catch(e){}return null}
-function clearSession(){try{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(USER_KEY)}catch(e){}sessionToken=null;isVerified=false}
-function getUser(){try{return JSON.parse(localStorage.getItem(USER_KEY))}catch(e){return null}}
-function isLoggedIn(){return getSession()!==null}
+var AUTH = (function () {
+    var FIREBASE_CONFIG = {
+        apiKey: "AIzaSyCWJ-Xy3iu7opIe-nkMBgq9Z9ajhY_KPXw",
+        authDomain: "slicedelight-df83d.firebaseapp.com",
+        databaseURL: "https://slicedelight-df83d-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "slicedelight-df83d",
+        storageBucket: "slicedelight-df83d.firebasestorage.app",
+        messagingSenderId: "875133857410",
+        appId: "1:875133857410:web:5c6d8374476c50f2194e9b"
+    };
+    if (typeof firebase !== "undefined" && !firebase.apps.length) {
+        firebase.initializeApp(FIREBASE_CONFIG);
+    }
+    var db;
+    try { db = firebase.database(); } catch (e) { console.error("Firebase DB error:", e); }
 
-function initPhoneInput(){
-var input=document.getElementById("authPhoneInput");var checkEl=document.getElementById("authPhoneCheck");var carrierEl=document.getElementById("authCarrier");var rowEl=document.getElementById("authPhoneRow");
-if(!input)return;
-input.addEventListener("input",function(){var val=this.value.replace(/\D/g,"");if(val.length>10)val=val.substring(0,10);this.value=val;rowEl.classList.remove("error","success");checkEl.className="auth-phone-check";checkEl.innerHTML="";carrierEl.innerHTML="";
-if(val.length>=2){var carrier=detectCarrier(val);if(carrier)carrierEl.innerHTML='<i class="'+getCarrierIcon(carrier)+'"></i> '+carrier+' Network'}
-if(val.length===10){if(isValidIndianMobile(val)){rowEl.classList.add("success");checkEl.className="auth-phone-check valid";checkEl.innerHTML='<i class="fas fa-check"></i>';haptic("light")}else{rowEl.classList.add("error");checkEl.className="auth-phone-check invalid";checkEl.innerHTML='<i class="fas fa-times"></i>';carrierEl.innerHTML='<span style="color:var(--red)"><i class="fas fa-exclamation-circle"></i> Invalid</span>'}}
-});
-var nameInput=document.getElementById("authNameInput");if(nameInput)setTimeout(function(){nameInput.focus()},500);
+    var generatedOTP = null;
+    var otpTimer = null;
+    var otpSeconds = 60;
+    var authPhone = "";
+    var authEmail = "";
+    var authName = "";
+    var isVerified = false;
+    var sessionToken = null;
+    var SESSION_KEY = "sliceDelightSession";
+    var USER_KEY = "sliceDelightUser";
+    var PTS_KEY = "sliceDelightPts";
+
+    var CARRIERS = {
+        "70":"Vi","71":"Vi","72":"Idea","73":"BSNL","74":"BSNL",
+        "75":"Jio","76":"Jio","77":"Jio","78":"Jio","79":"Jio",
+        "80":"BSNL","81":"Jio","82":"Airtel","83":"Jio","84":"Vi",
+        "85":"Jio","86":"Vi","87":"MTNL","88":"Vi","89":"Jio",
+        "90":"Airtel","91":"BSNL","92":"Airtel","93":"Airtel",
+        "94":"BSNL","95":"Airtel","96":"Jio","97":"Airtel",
+        "98":"Airtel","99":"Airtel"
+    };
+    function detectCarrier(p) { if (!p||p.length<2) return ""; return CARRIERS[p.substring(0,2)]||""; }
+    function getCarrierIcon(c) {
+        if(c==="Jio")return "fas fa-signal";if(c==="Airtel")return "fas fa-wifi";
+        if(c==="Vi"||c==="Idea")return "fas fa-tower-broadcast";
+        if(c==="BSNL"||c==="MTNL")return "fas fa-satellite-dish";
+        return "fas fa-mobile-screen";
+    }
+
+    function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+    function isValidIndianMobile(p) { if(!p||p.length!==10)return false; var f=p.charAt(0); return f>="6"&&f<="9"; }
+    function formatPhone(p) { if(!p||p.length!==10)return p; return p.substring(0,5)+" "+p.substring(5); }
+    function generateOTP() { return String(Math.floor(100000+Math.random()*900000)); }
+    function sanitizeEmailKey(email) { return email.replace(/[.#$\/\[\]@]/g,"_"); }
+
+    function haptic(t) {
+        if(!navigator.vibrate)return;
+        if(t==="light")navigator.vibrate(10);
+        else if(t==="medium")navigator.vibrate(25);
+        else if(t==="error")navigator.vibrate([100,50,100,50,100]);
+        else if(t==="success")navigator.vibrate([50,100,50]);
+    }
+    function fireConfetti() {
+        var colors=["#FF6B35","#F5A623","#22c55e","#3b82f6","#a855f7","#ef4444"];
+        for(var i=0;i<40;i++){
+            var el=document.createElement("div");el.className="confetti-piece";
+            el.style.left=Math.random()*100+"vw";
+            el.style.background=colors[Math.floor(Math.random()*colors.length)];
+            el.style.animationDuration=(2+Math.random()*2)+"s";
+            el.style.animationDelay=Math.random()*0.5+"s";
+            el.style.borderRadius=["50%","0","2px"][Math.floor(Math.random()*3)];
+            el.style.width=(6+Math.random()*8)+"px";
+            el.style.height=(6+Math.random()*8)+"px";
+            document.body.appendChild(el);
+            setTimeout(function(e){if(e.parentNode)e.parentNode.removeChild(e)},3500,el);
+        }
+    }
+
+    function saveSession(user) {
+        var session={user:user,token:"SD_"+Date.now()+"_"+Math.random().toString(36).substr(2,9),
+            createdAt:Date.now(),expiresAt:Date.now()+30*24*60*60*1000};
+        try{localStorage.setItem(SESSION_KEY,JSON.stringify(session));
+            localStorage.setItem(USER_KEY,JSON.stringify(user))}catch(e){}
+        sessionToken=session.token;
+    }
+    function getSession() {
+        try{var s=JSON.parse(localStorage.getItem(SESSION_KEY));
+            if(s&&s.expiresAt>Date.now()){sessionToken=s.token;return s}
+            localStorage.removeItem(SESSION_KEY)}catch(e){}
+        return null;
+    }
+    function clearSession() {
+        try{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(USER_KEY)}catch(e){}
+        sessionToken=null;isVerified=false;
+    }
+    function getUser() { try{return JSON.parse(localStorage.getItem(USER_KEY))}catch(e){return null} }
+    function isLoggedIn() { return getSession()!==null; }
+
+    function initInputs() {
+        var emailInput=document.getElementById("authEmailInput");
+        if(emailInput){
+            emailInput.addEventListener("input",function(){
+                var val=this.value.trim();
+                var checkEl=document.getElementById("authEmailCheck");
+                var rowEl=document.getElementById("authEmailRow");
+                if(!rowEl||!checkEl)return;
+                rowEl.classList.remove("error","success");
+                checkEl.className="auth-phone-check";checkEl.innerHTML="";
+                if(val.length>3&&val.indexOf("@")>-1){
+                    if(isValidEmail(val)){
+                        rowEl.classList.add("success");
+                        checkEl.className="auth-phone-check valid";
+                        checkEl.innerHTML='<i class="fas fa-check"></i>';haptic("light");
+                    }else{
+                        rowEl.classList.add("error");
+                        checkEl.className="auth-phone-check invalid";
+                        checkEl.innerHTML='<i class="fas fa-times"></i>';
+                    }
+                }
+            });
+        }
+        var phoneInput=document.getElementById("authPhoneInput");
+        if(phoneInput){
+            phoneInput.addEventListener("input",function(){
+                var val=this.value.replace(/\D/g,"");
+                if(val.length>10)val=val.substring(0,10);this.value=val;
+                var checkEl=document.getElementById("authPhoneCheck");
+                var carrierEl=document.getElementById("authCarrier");
+                var rowEl=document.getElementById("authPhoneRow");
+                if(rowEl)rowEl.classList.remove("error","success");
+                if(checkEl){checkEl.className="auth-phone-check";checkEl.innerHTML="";}
+                if(carrierEl)carrierEl.innerHTML="";
+                if(val.length>=2){var c=detectCarrier(val);
+                    if(c&&carrierEl)carrierEl.innerHTML='<i class="'+getCarrierIcon(c)+'"></i> '+c+" Network";}
+                if(val.length===10){
+                    if(isValidIndianMobile(val)){
+                        if(rowEl)rowEl.classList.add("success");
+                        if(checkEl){checkEl.className="auth-phone-check valid";checkEl.innerHTML='<i class="fas fa-check"></i>';}
+                    }else{
+                        if(rowEl)rowEl.classList.add("error");
+                        if(checkEl){checkEl.className="auth-phone-check invalid";checkEl.innerHTML='<i class="fas fa-times"></i>';}
+                    }
+                }
+            });
+        }
+        var nameInput=document.getElementById("authNameInput");
+        if(nameInput)setTimeout(function(){nameInput.focus()},500);
+    }
+
+    function initOTPInputs() {
+        var inputs=document.querySelectorAll("#otpInputs .otp-input");
+        inputs.forEach(function(inp,idx){
+            inp.addEventListener("input",function(){
+                var val=this.value.replace(/\D/g,"");this.value=val;
+                if(val){this.classList.add("filled");haptic("light");if(idx<inputs.length-1)inputs[idx+1].focus();}
+                else this.classList.remove("filled");
+                checkOTPComplete();
+            });
+            inp.addEventListener("keydown",function(e){
+                if(e.key==="Backspace"&&!this.value&&idx>0){inputs[idx-1].focus();inputs[idx-1].value="";inputs[idx-1].classList.remove("filled");}
+                if(e.key==="ArrowLeft"&&idx>0)inputs[idx-1].focus();
+                if(e.key==="ArrowRight"&&idx<inputs.length-1)inputs[idx+1].focus();
+            });
+            inp.addEventListener("paste",function(e){
+                e.preventDefault();
+                var paste=(e.clipboardData||window.clipboardData).getData("text").replace(/\D/g,"");
+                for(var i=0;i<Math.min(paste.length,6);i++){inputs[i].value=paste.charAt(i);inputs[i].classList.add("filled");}
+                if(paste.length>=6)inputs[5].focus();checkOTPComplete();
+            });
+            inp.addEventListener("focus",function(){this.select()});
+        });
+    }
+    function checkOTPComplete() {
+        var otp=getEnteredOTP();var btn=document.getElementById("authVerifyBtn");
+        if(btn)btn.disabled=otp.length<6;
+        if(otp.length===6)setTimeout(function(){verifyOTP()},300);
+    }
+    function getEnteredOTP() {
+        var inputs=document.querySelectorAll("#otpInputs .otp-input");
+        var otp="";inputs.forEach(function(inp){otp+=inp.value});return otp;
+    }
+    function clearOTPInputs() {
+        document.querySelectorAll("#otpInputs .otp-input").forEach(function(inp){
+            inp.value="";inp.classList.remove("filled","error","success");
+        });
+    }
+    function startOTPTimer() {
+        otpSeconds=60;
+        var timerEl=document.getElementById("otpTimer");
+        var countEl=document.getElementById("otpCountdown");
+        var resendBtn=document.getElementById("otpResendBtn");
+        if(timerEl)timerEl.style.display="inline";
+        if(resendBtn)resendBtn.classList.remove("show");
+        if(otpTimer)clearInterval(otpTimer);
+        otpTimer=setInterval(function(){
+            otpSeconds--;if(countEl)countEl.textContent=otpSeconds;
+            if(otpSeconds<=0){clearInterval(otpTimer);otpTimer=null;
+                if(timerEl)timerEl.style.display="none";
+                if(resendBtn)resendBtn.classList.add("show");}
+        },1000);
+    }
+
+    /* ══════════════════════════════════════
+       SEND OTP — Email-based via Firebase RTDB
+       ══════════════════════════════════════ */
+    function sendOTP() {
+    var nameInput = document.getElementById("authNameInput");
+    var emailInput = document.getElementById("authEmailInput");
+    var phoneInput = document.getElementById("authPhoneInput");
+    var sendBtn = document.getElementById("authSendBtn");
+    var emailRow = document.getElementById("authEmailRow");
+
+    authName = nameInput ? nameInput.value.trim() : "";
+    authEmail = emailInput ? emailInput.value.trim() : "";
+    authPhone = phoneInput ? phoneInput.value.trim() : "";
+
+    // Validate name
+    if (!authName || authName.length < 2) {
+        if (typeof S !== "undefined") S.toast("Please enter your name");
+        if (nameInput) nameInput.focus();
+        return;
+    }
+
+    // Validate email
+    if (!isValidEmail(authEmail)) {
+        if (emailRow) emailRow.classList.add("error");
+        haptic("error");
+        if (typeof S !== "undefined") S.toast("Enter a valid email address");
+        return;
+    }
+
+    // Validate phone (optional)
+    if (authPhone && authPhone.length > 0 && !isValidIndianMobile(authPhone)) {
+        var phoneRow = document.getElementById("authPhoneRow");
+        if (phoneRow) phoneRow.classList.add("error");
+        haptic("error");
+        if (typeof S !== "undefined") S.toast("Enter valid 10-digit mobile or leave empty");
+        return;
+    }
+
+    if (!db) {
+        if (typeof S !== "undefined") S.toast("Connection error. Please refresh.");
+        return;
+    }
+
+    // Show loading
+    if (sendBtn) {
+        sendBtn.classList.add("loading");
+        sendBtn.disabled = true;
+    }
+
+    // Generate OTP
+    var otp = generateOTP();
+    generatedOTP = otp;
+    var emailKey = sanitizeEmailKey(authEmail);
+
+    // Store OTP in Firebase for verification
+    var otpData = {
+        code: otp,
+        email: authEmail,
+        name: authName,
+        expiresAt: Date.now() + 5 * 60 * 1000,
+        createdAt: Date.now()
+    };
+
+    // Save to Firebase first
+    db.ref("emailOtps/" + emailKey).set(otpData)
+        .then(function () {
+            // Now send real email via EmailJS
+            var templateParams = {
+                otp_code: otp,
+                user_name: authName,
+                user_email: authEmail
+            };
+
+            return emailjs.send(
+                "service_xkx9axk",
+                "template_oopngop",
+                templateParams
+            );
+        })
+        .then(function (response) {
+            console.log("Email sent successfully:", response.status);
+
+            if (sendBtn) {
+                sendBtn.classList.remove("loading");
+                sendBtn.disabled = false;
+            }
+
+            if (typeof S !== "undefined") {
+                S.toast("OTP sent to " + authEmail + "! Check your inbox.");
+            }
+
+            // Switch to OTP input step
+            document.getElementById("authStep1").style.display = "none";
+            document.getElementById("authStep2").classList.add("show");
+            document.getElementById("authOtpPhone").textContent = authEmail;
+
+            startOTPTimer();
+            clearOTPInputs();
+
+            var fi = document.querySelector("#otpInputs .otp-input[data-idx='0']");
+            if (fi) setTimeout(function () { fi.focus(); }, 200);
+
+            haptic("medium");
+        })
+        .catch(function (error) {
+            console.error("OTP send error:", error);
+
+            if (sendBtn) {
+                sendBtn.classList.remove("loading");
+                sendBtn.disabled = false;
+            }
+
+            if (typeof S !== "undefined") {
+                S.toast("Failed to send OTP. Please try again.");
+            }
+        });
 }
+    /* ══════════════════════════════════════
+       VERIFY OTP — Checks against Firebase RTDB
+       ══════════════════════════════════════ */
+    function verifyOTP() {
+        var entered=getEnteredOTP();
+        var btn=document.getElementById("authVerifyBtn");
+        var inputs=document.querySelectorAll("#otpInputs .otp-input");
+        if(entered.length<6)return;
+        if(!db){if(typeof S!=="undefined")S.toast("Connection error. Please refresh.");return;}
+        if(btn){btn.classList.add("loading");btn.disabled=true;}
 
-function initOTPInputs(){
-var inputs=document.querySelectorAll("#otpInputs .otp-input");
-inputs.forEach(function(inp,idx){
-inp.addEventListener("input",function(){var val=this.value.replace(/\D/g,"");this.value=val;if(val.length>0){this.classList.add("filled");haptic("light");if(idx<inputs.length-1)inputs[idx+1].focus()}else{this.classList.remove("filled")}checkOTPComplete()});
-inp.addEventListener("keydown",function(e){if(e.key==="Backspace"&&!this.value&&idx>0){inputs[idx-1].focus();inputs[idx-1].value="";inputs[idx-1].classList.remove("filled")}if(e.key==="ArrowLeft"&&idx>0)inputs[idx-1].focus();if(e.key==="ArrowRight"&&idx<inputs.length-1)inputs[idx+1].focus()});
-inp.addEventListener("paste",function(e){e.preventDefault();var paste=(e.clipboardData||window.clipboardData).getData("text").replace(/\D/g,"");for(var i=0;i<Math.min(paste.length,6);i++){inputs[i].value=paste.charAt(i);inputs[i].classList.add("filled")}if(paste.length>=6)inputs[5].focus();else if(paste.length>0)inputs[Math.min(paste.length,5)].focus();checkOTPComplete()});
-inp.addEventListener("focus",function(){this.select()});
-});
+        var emailKey=sanitizeEmailKey(authEmail);
+
+        db.ref("emailOtps/"+emailKey).once("value")
+        .then(function(snap){
+            var data=snap.val();
+            if(!data){throw{message:"OTP not found. Please resend."};}
+            if(Date.now()>data.expiresAt){throw{message:"OTP expired. Please resend."};}
+            if(data.code!==entered){throw{message:"Incorrect OTP. Please try again."};}
+
+            // SUCCESS — OTP matches!
+            db.ref("emailOtps/"+emailKey).remove();
+
+            if(btn){btn.classList.remove("loading");btn.disabled=false;}
+            isVerified=true;haptic("success");
+            inputs.forEach(function(inp){inp.classList.remove("error");inp.classList.add("success")});
+
+            var user={name:authName,email:authEmail,phone:authPhone,verified:true};
+            saveSession(user);
+
+            var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
+            if(pts===0){pts=50;try{localStorage.setItem(PTS_KEY,"50")}catch(e){}}
+
+            setTimeout(function(){
+                document.getElementById("authStep2").classList.remove("show");
+                document.getElementById("authStep3").classList.add("show");
+                document.getElementById("authWelcomeName").textContent="Welcome, "+authName+"!";
+                document.getElementById("authPtsDisplay").textContent=pts;
+                fireConfetti();updateNavUser(user);
+                APP.showNotif("Welcome!","Hey "+authName+"!","order");
+            },500);
+        })
+        .catch(function(error){
+            if(btn){btn.classList.remove("loading");btn.disabled=false;}
+            haptic("error");
+            inputs.forEach(function(inp){inp.classList.add("error")});
+            var msg=error.message||"Incorrect OTP.";
+            if(typeof S!=="undefined")S.toast(msg);
+            setTimeout(function(){clearOTPInputs();
+                var fi=document.querySelector("#otpInputs .otp-input[data-idx='0']");
+                if(fi)fi.focus();},1000);
+        });
+    }
+
+    function resendOTP() {
+    if (!authEmail) {
+        if (typeof S !== "undefined") S.toast("Email missing.");
+        return;
+    }
+    if (!db) {
+        if (typeof S !== "undefined") S.toast("Connection error.");
+        return;
+    }
+
+    haptic("medium");
+    clearOTPInputs();
+
+    var otp = generateOTP();
+    generatedOTP = otp;
+    var emailKey = sanitizeEmailKey(authEmail);
+
+    var otpData = {
+        code: otp,
+        email: authEmail,
+        name: authName,
+        expiresAt: Date.now() + 5 * 60 * 1000,
+        createdAt: Date.now()
+    };
+
+    db.ref("emailOtps/" + emailKey).set(otpData)
+        .then(function () {
+            var templateParams = {
+                otp_code: otp,
+                user_name: authName,
+                user_email: authEmail
+            };
+
+            return emailjs.send(
+                "service_xkx9axk",
+                "template_oopngop",
+                templateParams
+            );
+        })
+        .then(function (response) {
+            console.log("Resend email sent:", response.status);
+            startOTPTimer();
+
+            if (typeof S !== "undefined") {
+                S.toast("New OTP sent to " + authEmail + "!");
+            }
+        })
+        .catch(function (error) {
+            console.error("Resend error:", error);
+            if (typeof S !== "undefined") {
+                S.toast("Could not resend OTP. Try again.");
+            }
+        });
 }
-function checkOTPComplete(){var inputs=document.querySelectorAll("#otpInputs .otp-input");var otp="";inputs.forEach(function(inp){otp+=inp.value});var btn=document.getElementById("authVerifyBtn");if(btn)btn.disabled=otp.length<6;if(otp.length===6)setTimeout(function(){verifyOTP()},300)}
-function getEnteredOTP(){var inputs=document.querySelectorAll("#otpInputs .otp-input");var otp="";inputs.forEach(function(inp){otp+=inp.value});return otp}
-function clearOTPInputs(){document.querySelectorAll("#otpInputs .otp-input").forEach(function(inp){inp.value="";inp.classList.remove("filled","error","success")})}
+    function editPhone() {
+        document.getElementById("authStep1").style.display="block";
+        document.getElementById("authStep2").classList.remove("show");
+        if(otpTimer){clearInterval(otpTimer);otpTimer=null;}
+        generatedOTP=null;
+        var e=document.getElementById("authEmailInput");
+        if(e)setTimeout(function(){e.focus();e.select()},100);
+    }
+    function complete() {
+        var s=document.getElementById("authScreen");if(s)s.classList.remove("open");
+        document.body.style.overflow="";
+        if(typeof S!=="undefined"&&S.onAuthComplete)S.onAuthComplete();
+    }
+    function skip() {
+        var s=document.getElementById("authScreen");if(s)s.classList.remove("open");
+        document.body.style.overflow="";
+        try{localStorage.setItem("sliceDelightAuthSkipped","true")}catch(e){}
+    }
+    function show() {
+        var s=document.getElementById("authScreen");
+        if(s){s.classList.add("open","animating");setTimeout(function(){s.classList.remove("animating")},300);}
+        document.body.style.overflow="hidden";
+        var s1=document.getElementById("authStep1"),s2=document.getElementById("authStep2"),s3=document.getElementById("authStep3");
+        if(s1)s1.style.display="block";if(s2)s2.classList.remove("show");if(s3)s3.classList.remove("show");
+        generatedOTP=null;
+        var user=getUser();
+        if(user){
+            var ni=document.getElementById("authNameInput");
+            var ei=document.getElementById("authEmailInput");
+            var pi=document.getElementById("authPhoneInput");
+            if(ni&&user.name)ni.value=user.name;
+            if(ei&&user.email){ei.value=user.email;ei.dispatchEvent(new Event("input"));}
+            if(pi&&user.phone){pi.value=user.phone;pi.dispatchEvent(new Event("input"));}
+        }
+        initInputs();initOTPInputs();
+    }
 
-function startOTPTimer(){
-otpSeconds=30;var timerEl=document.getElementById("otpTimer");var countEl=document.getElementById("otpCountdown");var resendBtn=document.getElementById("otpResendBtn");
-if(timerEl)timerEl.style.display="inline";if(resendBtn)resendBtn.classList.remove("show");
-if(otpTimer)clearInterval(otpTimer);
-otpTimer=setInterval(function(){otpSeconds--;if(countEl)countEl.textContent=otpSeconds;if(otpSeconds<=0){clearInterval(otpTimer);otpTimer=null;if(timerEl)timerEl.style.display="none";if(resendBtn)resendBtn.classList.add("show")}},1000);
-}
+    function updateNavUser(user) {
+        var area=document.getElementById("navUserArea");if(!area)return;
+        if(user&&user.name){
+            var initials=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
+            area.innerHTML='<div class="nav-user-pill" onclick="AUTH.handleUserClick()"><div class="nup-avatar">'+initials+'</div><span class="nup-name">'+user.name.split(" ")[0]+"</span></div>";
+        }else{
+            area.innerHTML='<button class="nav-icon-btn" onclick="AUTH.handleUserClick()" title="Account"><i class="fas fa-user"></i></button>';
+        }
+    }
+    function handleUserClick(){if(isLoggedIn())openProfile();else show();}
 
-function sendOTP(){
-var nameInput=document.getElementById("authNameInput");var phoneInput=document.getElementById("authPhoneInput");var sendBtn=document.getElementById("authSendBtn");var rowEl=document.getElementById("authPhoneRow");
-authName=nameInput?nameInput.value.trim():"";authPhone=phoneInput?phoneInput.value.trim():"";
-if(!authName||authName.length<2){if(typeof S!=="undefined"&&S.toast)S.toast("Please enter your name");if(nameInput)nameInput.focus();return}
-if(!isValidIndianMobile(authPhone)){rowEl.classList.add("error");haptic("error");if(typeof S!=="undefined"&&S.toast)S.toast("Enter valid 10-digit mobile");return}
-if(sendBtn){sendBtn.classList.add("loading");sendBtn.disabled=true}
-otpGenerated=generateOTP();
-setTimeout(function(){
-if(sendBtn){sendBtn.classList.remove("loading");sendBtn.disabled=false}
-document.getElementById("authStep1").style.display="none";
-document.getElementById("authStep2").classList.add("show");
-document.getElementById("authOtpPhone").textContent="+91 "+formatPhone(authPhone);
-startOTPTimer();clearOTPInputs();
-var fi=document.querySelector("#otpInputs .otp-input[data-idx='0']");if(fi)setTimeout(function(){fi.focus()},100);
-haptic("medium");
-if(typeof S!=="undefined"&&S.toast)S.toast("📱 Demo OTP: "+otpGenerated);
-console.log("🔐 OTP: "+otpGenerated);
-},1500);
-}
+    function openProfile() {
+        var user=getUser();if(!user){show();return;}
+        var screen=document.getElementById("profileScreen"),content=document.getElementById("profileContent");
+        if(!screen||!content)return;
+        var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
+        var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
+        var uo=orders.filter(function(o){return(o.email&&o.email===user.email)||(o.phone&&o.phone===user.phone)});
+        var spent=0;uo.forEach(function(o){spent+=o.total||0});
+        var ini=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
 
-function verifyOTP(){
-var entered=getEnteredOTP();var btn=document.getElementById("authVerifyBtn");var inputs=document.querySelectorAll("#otpInputs .otp-input");
-if(entered.length<6)return;
-if(btn){btn.classList.add("loading");btn.disabled=true}
-setTimeout(function(){
-if(btn){btn.classList.remove("loading");btn.disabled=false}
-if(entered===otpGenerated){
-isVerified=true;haptic("success");
-inputs.forEach(function(inp){inp.classList.remove("error");inp.classList.add("success")});
-var user={name:authName,phone:authPhone,verified:true};saveSession(user);
-var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
-setTimeout(function(){
-document.getElementById("authStep2").classList.remove("show");
-document.getElementById("authStep3").classList.add("show");
-document.getElementById("authWelcomeName").textContent="Welcome, "+authName+"! 🎉";
-document.getElementById("authPtsDisplay").textContent=pts;
-fireConfetti();updateNavUser(user);
-APP.showNotif("Welcome back!","Hey "+authName+", great to see you!","order");
-},500);
-}else{
-haptic("error");inputs.forEach(function(inp){inp.classList.add("error")});
-if(typeof S!=="undefined"&&S.toast)S.toast("❌ Incorrect OTP");
-setTimeout(function(){clearOTPInputs();var fi=document.querySelector("#otpInputs .otp-input[data-idx='0']");if(fi)fi.focus()},1000);
-}
-},1000);
-}
+        var h='<div class="profile-avatar-section"><div class="profile-avatar">'+ini+"</div>";
+        h+='<div class="profile-user-name">'+user.name+"</div>";
+        if(user.email)h+='<div class="profile-user-phone"><i class="fas fa-envelope"></i> '+user.email+' <span class="verified"><i class="fas fa-check-circle"></i> Verified</span></div>';
+        if(user.phone)h+='<div class="profile-user-phone" style="margin-top:4px"><i class="fas fa-phone"></i> +91 '+formatPhone(user.phone)+'</div>';
+        h+='</div>';
 
-function resendOTP(){otpGenerated=generateOTP();startOTPTimer();clearOTPInputs();haptic("medium");var fi=document.querySelector("#otpInputs .otp-input[data-idx='0']");if(fi)fi.focus();if(typeof S!=="undefined"&&S.toast)S.toast("📱 New OTP: "+otpGenerated);console.log("🔐 Resent: "+otpGenerated)}
-function editPhone(){document.getElementById("authStep1").style.display="block";document.getElementById("authStep2").classList.remove("show");if(otpTimer){clearInterval(otpTimer);otpTimer=null}var p=document.getElementById("authPhoneInput");if(p)setTimeout(function(){p.focus();p.select()},100)}
-function complete(){var s=document.getElementById("authScreen");if(s)s.classList.remove("open");document.body.style.overflow="";if(typeof S!=="undefined"&&S.onAuthComplete)S.onAuthComplete()}
-function skip(){var s=document.getElementById("authScreen");if(s)s.classList.remove("open");document.body.style.overflow="";try{localStorage.setItem("sliceDelightAuthSkipped","true")}catch(e){}}
+        h+='<div class="profile-stats"><div class="profile-stat"><div class="ps-val">'+uo.length+'</div><div class="ps-lbl">Orders</div></div>';
+        h+='<div class="profile-stat"><div class="ps-val">'+pts+'</div><div class="ps-lbl">Points</div></div>';
+        h+='<div class="profile-stat"><div class="ps-val">\u20b9'+spent+'</div><div class="ps-lbl">Spent</div></div></div>';
 
-function show(){
-var s=document.getElementById("authScreen");if(s){s.classList.add("open","animating");setTimeout(function(){s.classList.remove("animating")},300)}
-document.body.style.overflow="hidden";
-var s1=document.getElementById("authStep1"),s2=document.getElementById("authStep2"),s3=document.getElementById("authStep3");
-if(s1)s1.style.display="block";if(s2)s2.classList.remove("show");if(s3)s3.classList.remove("show");
-var user=getUser();
-if(user){var ni=document.getElementById("authNameInput"),pi=document.getElementById("authPhoneInput");if(ni&&user.name)ni.value=user.name;if(pi&&user.phone){pi.value=user.phone;pi.dispatchEvent(new Event("input"))}}
-initPhoneInput();initOTPInputs();
-}
+        h+='<div class="profile-card"><div class="profile-card-title"><i class="fas fa-grid-2"></i> Quick Actions</div>';
+        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openHistory()"><div class="profile-menu-icon"><i class="fas fa-clock-rotate-left"></i></div><div class="profile-menu-text"><h4>Order History</h4><p>'+uo.length+' orders</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openWallet()"><div class="profile-menu-icon"><i class="fas fa-wallet"></i></div><div class="profile-menu-text"><h4>My Wallet</h4><p>'+pts+' points</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openAddrMgr()"><div class="profile-menu-icon"><i class="fas fa-map-marker-alt"></i></div><div class="profile-menu-text"><h4>My Addresses</h4><p>Manage addresses</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View & checkout</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h+="</div>";
+        h+='<button class="profile-logout" onclick="AUTH.logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>';
 
-function updateNavUser(user){
-var area=document.getElementById("navUserArea");if(!area)return;
-if(user&&user.name){var initials=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
-area.innerHTML='<div class="nav-user-pill" onclick="AUTH.handleUserClick()"><div class="nup-avatar">'+initials+'</div><span class="nup-name">'+user.name.split(" ")[0]+'</span></div>';
-}else{area.innerHTML='<button class="nav-icon-btn" onclick="AUTH.handleUserClick()" title="Account"><i class="fas fa-user"></i></button>'}
-}
-function handleUserClick(){if(isLoggedIn())openProfile();else show()}
+        content.innerHTML=h;
+        screen.classList.add("open");document.body.style.overflow="hidden";
+        var pti=document.getElementById("profileThemeIcon");
+        if(pti)pti.className=document.body.classList.contains("light")?"fas fa-sun":"fas fa-moon";
+    }
+    function closeProfile(){var s=document.getElementById("profileScreen");if(s)s.classList.remove("open");document.body.style.overflow="";}
+    function logout(){clearSession();updateNavUser(null);closeProfile();if(typeof S!=="undefined")S.toast("Signed out");}
+    function requireAuth(cb){if(isLoggedIn()){if(cb)cb();return true;}show();return false;}
+    function init(){var s=getSession();if(s&&s.user){isVerified=true;updateNavUser(s.user);}}
 
-function openProfile(){
-var user=getUser();if(!user){show();return}
-var screen=document.getElementById("profileScreen");var content=document.getElementById("profileContent");if(!screen||!content)return;
-var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
-var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
-var userOrders=orders.filter(function(o){return o.phone===user.phone});
-var totalSpent=0;userOrders.forEach(function(o){totalSpent+=o.total||0});
-var initials=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
-var h='<div class="profile-avatar-section"><div class="profile-avatar">'+initials+'</div><div class="profile-user-name">'+user.name+'</div><div class="profile-user-phone"><i class="fas fa-phone"></i> +91 '+formatPhone(user.phone)+' <span class="verified"><i class="fas fa-check-circle"></i> Verified</span></div></div>';
-h+='<div class="profile-stats"><div class="profile-stat"><div class="ps-val">'+userOrders.length+'</div><div class="ps-lbl">Orders</div></div><div class="profile-stat"><div class="ps-val">'+pts+'</div><div class="ps-lbl">Points</div></div><div class="profile-stat"><div class="ps-val">₹'+totalSpent+'</div><div class="ps-lbl">Spent</div></div></div>';
-h+='<div class="profile-card"><div class="profile-card-title"><i class="fas fa-grid-2"></i> Quick Actions</div>';
-h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openHistory()"><div class="profile-menu-icon"><i class="fas fa-clock-rotate-left"></i></div><div class="profile-menu-text"><h4>Order History</h4><p>'+userOrders.length+' orders</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openWallet()"><div class="profile-menu-icon"><i class="fas fa-wallet"></i></div><div class="profile-menu-text"><h4>My Wallet</h4><p>'+pts+' points</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openAddrMgr()"><div class="profile-menu-icon"><i class="fas fa-map-marker-alt"></i></div><div class="profile-menu-text"><h4>My Addresses</h4><p>Manage saved addresses</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View & checkout</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-h+='</div>';
-h+='<button class="profile-logout" onclick="AUTH.logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>';
-content.innerHTML=h;screen.classList.add("open");document.body.style.overflow="hidden";
-var pti=document.getElementById("profileThemeIcon");if(pti)pti.className=document.body.classList.contains("light")?"fas fa-sun":"fas fa-moon";
-}
-function closeProfile(){var s=document.getElementById("profileScreen");if(s)s.classList.remove("open");document.body.style.overflow=""}
-function logout(){clearSession();updateNavUser(null);closeProfile();if(typeof S!=="undefined"&&S.toast)S.toast("Signed out successfully")}
-function requireAuth(cb){if(isLoggedIn()){if(cb)cb();return true}show();return false}
-
-function init(){
-var session=getSession();
-if(session&&session.user){isVerified=true;updateNavUser(session.user)}
-}
-
-return{init:init,show:show,sendOTP:sendOTP,verifyOTP:verifyOTP,resendOTP:resendOTP,editPhone:editPhone,complete:complete,skip:skip,handleUserClick:handleUserClick,openProfile:openProfile,closeProfile:closeProfile,logout:logout,isLoggedIn:isLoggedIn,getUser:getUser,requireAuth:requireAuth,updateNavUser:updateNavUser};
+    return{
+        init:init,show:show,sendOTP:sendOTP,verifyOTP:verifyOTP,
+        resendOTP:resendOTP,editPhone:editPhone,complete:complete,
+        skip:skip,handleUserClick:handleUserClick,openProfile:openProfile,
+        closeProfile:closeProfile,logout:logout,isLoggedIn:isLoggedIn,
+        getUser:getUser,requireAuth:requireAuth,updateNavUser:updateNavUser
+    };
 })();
 </script>
 <script>
@@ -1808,12 +2187,14 @@ var DATA=[
 var CATS=[{k:"all",e:"🍽️",l:"All"},{k:"bestseller",e:"🔥",l:"Bestsellers"},{k:"test",e:"🧪",l:"Test"},{k:"pizza",e:"🍕",l:"Pizza"},{k:"burger",e:"🍔",l:"Burgers"},{k:"sandwich",e:"🥪",l:"Sandwich"},{k:"pasta",e:"🍝",l:"Pasta"},{k:"maggie",e:"🍜",l:"Maggie"},{k:"coffee",e:"☕",l:"Coffee"},{k:"shake",e:"🥤",l:"Shakes"},{k:"snack",e:"🍟",l:"Snacks"},{k:"dessert",e:"🍫",l:"Dessert"}];
 
 var items=DATA;
-try{var saved=JSON.parse(localStorage.getItem("sliceDelightMenu"));if(saved&&saved.length){items=saved.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}})}}catch(e){}
+try{var saved=JSON.parse(localStorage.getItem("sliceDelightMenu"));if(saved&&saved.length){items=saved.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}})}}catch(e){},
 
 var cart={},curCat="all",oType="dinein",pMethod="upi",promoCode=null,promoDisc=0;
-var orderN=parseInt(localStorage.getItem("sd_ordersN")||"100");
+var orderN=parseInt(localStorage.getItem("sliceDelightOrderN")||"100");
 var activeOrderId=localStorage.getItem("sliceDelightActiveOrder")||null;
 var statusPollTimer=null,favorites={},reviews={},savedAddresses=[];
+var loyaltyDiscount=0;
+var loyaltyPointsUsed=0;
 
 try{var sc=JSON.parse(localStorage.getItem("sliceDelightCart"));if(sc&&typeof sc==="object"){var vc={};for(var ck in sc){if(sc.hasOwnProperty(ck)&&parseInt(sc[ck])>0)vc[ck]=parseInt(sc[ck])}cart=vc}}catch(e){cart={}}
 try{favorites=JSON.parse(localStorage.getItem("sliceDelightFavs"))||{}}catch(e){favorites={}}
@@ -1829,7 +2210,13 @@ function cartQty(){var c=0;for(var k in cart){if(cart.hasOwnProperty(k))c+=cart[
 function subtotal(){var t=0;for(var k in cart){if(cart.hasOwnProperty(k)){var it=find(k);if(it)t+=it.price*cart[k]}}return t}
 function delivery(sub){if(oType!=="delivery")return 0;if(promoCode&&PROMOS[promoCode]&&PROMOS[promoCode].type==="free")return 0;if(sub>=CFG.freeAbove)return 0;return CFG.delCharge}
 function discount(sub){if(!promoCode||!PROMOS[promoCode])return 0;var p=PROMOS[promoCode];if(sub<p.min)return 0;if(p.type==="pct")return Math.min(Math.round(sub*p.val/100),p.max);if(p.type==="flat")return Math.min(p.val,p.max);return 0}
-function totals(){var s=subtotal();var g=Math.round(s*0.05);var d=delivery(s);var disc=discount(s);promoDisc=disc;var t=s+g+d-disc;if(t<0)t=0;return{sub:s,gst:g,del:d,disc:disc,total:t}}
+function totals(){
+  var s=subtotal();var g=Math.round(s*0.05);var d=delivery(s);
+  var disc=discount(s);promoDisc=disc;
+  var t=s+g+d-disc-loyaltyDiscount;
+  if(t<0)t=0;
+  return{sub:s,gst:g,del:d,disc:disc,loyDisc:loyaltyDiscount,total:t};
+}
 function formatTime(date){var d=new Date(date);var h=d.getHours();var m=d.getMinutes();var ap=h>=12?'PM':'AM';h=h%12;if(h===0)h=12;return h+':'+(m<10?'0':'')+m+' '+ap}
 function formatDate(date){var d=new Date(date);var mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return d.getDate()+' '+mo[d.getMonth()]+' '+d.getFullYear()}
 function getItemRating(id){var revs=reviews[id];if(!revs||!revs.length)return{avg:4.2,cnt:0};var sum=0;for(var i=0;i<revs.length;i++)sum+=revs[i].stars;return{avg:Math.round(sum/revs.length*10)/10,cnt:revs.length}}
@@ -1874,20 +2261,20 @@ function hideSuggest(){var s=document.getElementById("searchSuggest");if(s)s.cla
 function toggleFav(id){if(favorites[id]){delete favorites[id];toast("Removed from favorites")}else{favorites[id]=true;toast("Added to favorites ❤️")}saveFavs();render();renderBestsellers()}
 
 function openItemModal(id){
-var it=find(id);if(!it)return;
-var overlay=document.getElementById("itemModalOverlay"),imgEl=document.getElementById("imImg"),scrollEl=document.getElementById("imScroll"),footEl=document.getElementById("imFoot");
-if(!overlay)return;imgEl.src=it.img;var rat=getItemRating(id),qty=cart[id]||0;
-var h='<div class="im-top"><div class="im-name">'+it.name+'</div><div class="im-price-big">₹'+it.price+'</div></div>';
-h+='<div class="im-meta"><div class="im-meta-pill"><span class="card-veg-dot" style="width:10px;height:10px;border-width:1.5px"></span> Pure Veg</div>';
-if(it.prep)h+='<div class="im-meta-pill"><i class="fas fa-clock"></i> '+it.prep+' min</div>';
-h+='<div class="im-meta-pill"><i class="fas fa-star"></i> '+rat.avg+'</div>';
-if(it.cal)h+='<div class="im-meta-pill"><i class="fas fa-fire"></i> '+it.cal+' cal</div></div>';
-h+='<div class="im-desc-full">'+(it.desc||"Delicious item prepared fresh.")+'</div>';
-scrollEl.innerHTML=h;
-var fh='<div class="im-foot-price">₹'+it.price+'</div>';
-if(qty>0){fh+='<div class="im-foot-qty"><button onclick="S.chgModal(\''+id+'\',-1)">-</button><span id="imQty">'+qty+'</span><button onclick="S.chgModal(\''+id+'\',1)">+</button></div>'}
-else{fh+='<button class="im-foot-add" onclick="S.addModal(\''+id+'\')"><i class="fas fa-plus"></i> Add to Cart</button>'}
-footEl.innerHTML=fh;overlay.classList.add("open");document.body.style.overflow="hidden";hideSuggest();
+ var it=find(id);if(!it)return;
+ var overlay=document.getElementById("itemModalOverlay"),imgEl=document.getElementById("imImg"),scrollEl=document.getElementById("imScroll"),footEl=document.getElementById("imFoot");
+ if(!overlay)return;imgEl.src=it.img;var rat=getItemRating(id),qty=cart[id]||0;
+ var h='<div class="im-top"><div class="im-name">'+it.name+'</div><div class="im-price-big">\u20b9'+it.price+'</div></div>';
+ h+='<div class="im-meta"><div class="im-meta-pill"><span class="card-veg-dot" style="width:10px;height:10px;border-width:1.5px"></span> Pure Veg</div>';
+ if(it.prep)h+='<div class="im-meta-pill"><i class="fas fa-clock"></i> '+it.prep+' min</div>';
+ h+='<div class="im-meta-pill"><i class="fas fa-star"></i> '+rat.avg+'</div>';
+ if(it.cal)h+='<div class="im-meta-pill"><i class="fas fa-fire"></i> '+it.cal+' cal</div></div>';
+ h+='<div class="im-desc-full">'+(it.desc||"Delicious item prepared fresh.")+'</div>';
+ scrollEl.innerHTML=h;
+ var fh='<div class="im-foot-price">\u20b9'+it.price+'</div>';
+ if(qty>0){fh+='<div class="im-foot-qty"><button onclick="S.chgModal(\''+id+'\',-1)">-</button><span id="imQty">'+qty+'</span><button onclick="S.chgModal(\''+id+'\',1)">+</button></div>'}
+ else{fh+='<button class="im-foot-add" onclick="S.addModal(\''+id+'\')"><i class="fas fa-plus"></i> Add to Cart</button>'}
+ footEl.innerHTML=fh;overlay.classList.add("open");document.body.style.overflow="hidden";hideSuggest();
 }
 function closeItemModal(){var o=document.getElementById("itemModalOverlay");if(o)o.classList.remove("open");document.body.style.overflow=""}
 function addModal(id){add(id);openItemModal(id)}
@@ -1901,16 +2288,22 @@ function updateBadges(){var c=cartQty();var b=document.getElementById("cBadge");
 function openCart(){document.getElementById("drawer").classList.add("open");document.getElementById("overlay").classList.add("open");document.body.style.overflow="hidden";renderDrawer()}
 function closeCart(){document.getElementById("drawer").classList.remove("open");document.getElementById("overlay").classList.remove("open");document.body.style.overflow=""}
 function renderDrawer(){
-var el=document.getElementById("drBody"),ft=document.getElementById("drFoot"),fm=document.getElementById("drForm");
-var keys=[];for(var k in cart){if(cart.hasOwnProperty(k)&&cart[k]>0)keys.push(k)}
-if(!keys.length){el.innerHTML='<div class="dr-empty"><i class="fas fa-bag-shopping"></i><p>Your cart is empty</p></div>';ft.style.display="none";fm.style.display="none";return}
-ft.style.display="block";fm.style.display="block";
-var h="";keys.forEach(function(id){var it=find(id),qty=cart[id];if(!it)return;h+='<div class="ci"><img src="'+it.img+'" onerror="this.src=\''+FB+'\'"><div class="ci-info"><div class="ci-name">'+it.name+'</div><div class="ci-price">₹'+(it.price*qty)+'</div></div><div class="ci-ctrl"><button onclick="S.chg(\''+id+'\',-1)">-</button><span>'+qty+'</span><button onclick="S.chg(\''+id+'\',1)">+</button></div></div>'});
-el.innerHTML=h;var c=totals();
-document.getElementById("dSub").textContent="₹"+c.sub;document.getElementById("dGst").textContent="₹"+c.gst;
-if(oType==="delivery"){if(c.del>0){document.getElementById("dDelRow").style.display="flex";document.getElementById("dFreeRow").style.display="none";document.getElementById("dDel").textContent="₹"+c.del}else{document.getElementById("dDelRow").style.display="none";document.getElementById("dFreeRow").style.display="flex"}}
-else{document.getElementById("dDelRow").style.display="none";document.getElementById("dFreeRow").style.display="none"}
-document.getElementById("dTotal").textContent="₹"+c.total;
+ var el=document.getElementById("drBody"),ft=document.getElementById("drFoot"),fm=document.getElementById("drForm");
+ var keys=[];for(var k in cart){if(cart.hasOwnProperty(k)&&cart[k]>0)keys.push(k)}
+ if(!keys.length){el.innerHTML='<div class="dr-empty"><i class="fas fa-bag-shopping"></i><p>Your cart is empty</p></div>';ft.style.display="none";fm.style.display="none";return}
+ ft.style.display="block";fm.style.display="block";
+ var h="";keys.forEach(function(id){var it=find(id),qty=cart[id];if(!it)return;h+='<div class="ci"><img src="'+it.img+'" onerror="this.src=\''+FB+'\'"><div class="ci-info"><div class="ci-name">'+it.name+'</div><div class="ci-price">\u20b9'+(it.price*qty)+'</div></div><div class="ci-ctrl"><button onclick="S.chg(\''+id+'\',-1)">-</button><span>'+qty+'</span><button onclick="S.chg(\''+id+'\',1)">+</button></div></div>'});
+ el.innerHTML=h;var c=totals();
+ document.getElementById("dSub").textContent="\u20b9"+c.sub;
+ document.getElementById("dGst").textContent="\u20b9"+c.gst;
+ if(oType==="delivery"){
+  if(c.del>0){document.getElementById("dDelRow").style.display="flex";document.getElementById("dFreeRow").style.display="none";document.getElementById("dDel").textContent="\u20b9"+c.del}
+  else{document.getElementById("dDelRow").style.display="none";document.getElementById("dFreeRow").style.display="flex"}
+ } else {
+  document.getElementById("dDelRow").style.display="none";
+  document.getElementById("dFreeRow").style.display="none";
+ }
+ document.getElementById("dTotal").textContent="\u20b9"+c.total;
 }
 function setOT(type,btn){oType=type;document.querySelectorAll(".type-btn").forEach(function(b){b.classList.remove("on")});btn.classList.add("on");var gt=document.getElementById("gTable");if(gt)gt.style.display=(type==="dinein")?"block":"none";var addr=document.getElementById("gAddr");if(addr){if(type==="delivery")addr.classList.add("show");else addr.classList.remove("show")}renderDrawer()}
 
@@ -1924,31 +2317,102 @@ document.getElementById("ckScreen").classList.add("open");document.body.style.ov
 }
 
 function buildCk(){
-var c=totals();var user=AUTH.getUser()||{name:"Guest",phone:""};
-var upi="upi://pay?pa="+CFG.upiId+"&pn="+encodeURIComponent(CFG.upiName)+"&am="+c.total+"&cu=INR";
-var qrUrl="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data="+encodeURIComponent(upi);
-var h='<div class="ck-inner">';
-h+='<div class="step"><div class="step-head"><span class="step-num">1</span><span class="step-title">Order Summary</span></div><div class="step-box">';
-for(var k in cart){if(!cart.hasOwnProperty(k))continue;var it=find(k);if(!it)continue;h+='<div class="ck-row"><span class="nm">'+it.name+' x '+cart[k]+'</span><span>₹'+(it.price*cart[k])+'</span></div>'}
-h+='<div class="ck-row"><span class="nm">GST (5%)</span><span>₹'+c.gst+'</span></div>';
-if(c.disc>0)h+='<div class="ck-row"><span class="nm" style="color:var(--green)">Promo ('+promoCode+')</span><span style="color:var(--green)">-₹'+c.disc+'</span></div>';
-h+='<div class="ck-total"><span>Total</span><span>₹'+c.total+'</span></div></div></div>';
-h+='<div class="step"><div class="step-head"><span class="step-num">2</span><span class="step-title">Promo Code</span></div>';
-h+='<div class="promo-wrap"><div class="promo-row"><input id="promoIn" placeholder="Enter promo code" value="'+(promoCode||"")+'"><button class="promo-apply" onclick="S.applyPromo()">Apply</button></div><div class="promo-msg" id="promoMsg"></div>';
-h+='<div class="promo-chips"><span class="promo-chip" onclick="S.fillPromo(\'WELCOME10\')">WELCOME10</span><span class="promo-chip" onclick="S.fillPromo(\'FLAT50\')">FLAT50</span><span class="promo-chip" onclick="S.fillPromo(\'TESTCODE\')">TESTCODE</span></div></div></div>';
-h+='<div class="step"><div class="step-head"><span class="step-num">3</span><span class="step-title">Payment</span></div><div class="step-box" style="padding:14px">';
-h+='<div class="payopt sel" onclick="S.pickPay(\'upi\',this)"><div class="pay-radio"></div><span class="pay-em">📱</span><div class="pay-info"><h4>UPI / QR</h4><p>Paytm, GPay, PhonePe</p></div></div>';
-h+='<div class="payopt" onclick="S.pickPay(\'counter\',this)"><div class="pay-radio"></div><span class="pay-em">💵</span><div class="pay-info"><h4>Pay at Counter</h4><p>Cash or card</p></div></div></div></div>';
-h+='<div class="step"><div class="qr-sec show" id="qrSec"><div class="qr-card"><div class="qr-top"><div class="qb">paytm</div><div><div class="qn">'+CFG.upiName+'</div><div class="qp">'+CFG.upiPhone+'</div></div></div><div class="qr-mid"><div class="qt">Scan to Pay</div><div class="qr-box"><img src="'+qrUrl+'" alt="QR"></div><div class="qu">UPI: <strong>'+CFG.upiId+'</strong></div></div><div class="qr-btm">BHIM | UPI</div></div>';
-h+='<div class="amt-badge"><div class="al">Amount</div><div class="av">₹'+c.total+'</div></div>';
-h+='<div class="upi-copy"><code>'+CFG.upiId+'</code><button onclick="S.cpUPI()">Copy</button></div></div></div>';
-h+='<div class="step"><button class="confirm-btn" onclick="S.placeOrder()"><i class="fas fa-check-circle"></i> Confirm Order - ₹'+c.total+'</button></div>';
-h+='<div style="height:60px"></div></div>';
-document.getElementById("ckScroll").innerHTML=h;pMethod="upi";
+ var c=totals();var user=AUTH.getUser()||{name:"Guest",phone:""};
+ var upi="upi://pay?pa="+CFG.upiId+"&pn="+encodeURIComponent(CFG.upiName)+"&am="+c.total+"&cu=INR";
+ var qrUrl="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data="+encodeURIComponent(upi);
+ var h='<div class="ck-inner">';
+ h+='<div class="step"><div class="step-head"><span class="step-num">1</span><span class="step-title">Order Summary</span></div><div class="step-box">';
+ for(var k in cart){if(!cart.hasOwnProperty(k))continue;var it=find(k);if(!it)continue;h+='<div class="ck-row"><span class="nm">'+it.name+' x '+cart[k]+'</span><span>\u20b9'+(it.price*cart[k])+'</span></div>'}
+ h+='<div class="ck-row"><span class="nm">GST (5%)</span><span>\u20b9'+c.gst+'</span></div>';
+ if(c.disc>0)h+='<div class="ck-row"><span class="nm" style="color:var(--green)">Promo ('+promoCode+')</span><span style="color:var(--green)">-\u20b9'+c.disc+'</span></div>';
+ if(c.loyDisc>0)h+='<div class="ck-row"><span class="nm" style="color:var(--gold)"><i class="fas fa-coins"></i> Loyalty Discount</span><span style="color:var(--gold)">-\u20b9'+c.loyDisc+'</span></div>';
+ h+='<div class="ck-total"><span>Total</span><span>\u20b9'+c.total+'</span></div></div></div>';
+ h+='<div class="step"><div class="step-head"><span class="step-num">2</span><span class="step-title">Promo Code</span></div>';
+ h+='<div class="promo-wrap"><div class="promo-row"><input id="promoIn" placeholder="Enter promo code" value="'+(promoCode||"")+'"><button class="promo-apply" onclick="S.applyPromo()">Apply</button></div><div class="promo-msg" id="promoMsg"></div>';
+ h+='<div class="promo-chips"><span class="promo-chip" onclick="S.fillPromo(\'WELCOME10\')">WELCOME10</span><span class="promo-chip" onclick="S.fillPromo(\'FLAT50\')">FLAT50</span><span class="promo-chip" onclick="S.fillPromo(\'TESTCODE\')">TESTCODE</span></div></div></div>';
+ // LOYALTY POINTS SECTION
+var _lpts=0;try{_lpts=parseInt(localStorage.getItem("sliceDelightPts"))||0}catch(e){}
+var _lc=null;try{_lc=JSON.parse(localStorage.getItem("sd_loy"))}catch(e){}
+if(_lc&&_lc.enabled&&_lpts>0){
+  h+='<div class="step"><div class="step-head"><span class="step-num" style="background:linear-gradient(135deg,var(--gold),#d97706)"><i class="fas fa-coins" style="font-size:12px"></i></span><span class="step-title">Loyalty Points</span></div>';
+  h+='<div class="step-box" style="text-align:center;padding:20px">';
+  h+='<div style="font-size:13px;color:var(--muted);margin-bottom:8px">Available: <strong style="color:var(--gold)">'+_lpts+' points</strong></div>';
+  if(loyaltyDiscount>0){
+    h+='<div style="font-size:16px;font-weight:900;color:var(--green);margin-bottom:12px">-\u20b9'+loyaltyDiscount+' applied!</div>';
+    h+='<button onclick="S.removeLoyaltyDiscount()" style="padding:10px 20px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--red);font-weight:800;font-size:13px;cursor:pointer">Remove</button>';
+  }else{
+    var _pv=_lc.pv||0.5;var _maxV=Math.floor(_lpts*_pv);
+    h+='<div style="font-size:12px;color:var(--muted2);margin-bottom:12px">'+_lpts+' pts = \u20b9'+_maxV+' (max '+(_lc.maxPct||20)+'% of order)</div>';
+    if(_lpts>=(_lc.minRedeem||100)){
+      h+='<button onclick="S.applyLoyaltyDiscount()" style="padding:12px 24px;background:linear-gradient(135deg,var(--gold),#d97706);color:#000;border-radius:12px;font-weight:900;font-size:14px;cursor:pointer;border:0;box-shadow:0 4px 16px rgba(245,166,35,.3)"><i class="fas fa-coins"></i> Redeem Points</button>';
+    }else{
+      h+='<div style="font-size:11px;color:var(--muted2)">Min '+(_lc.minRedeem||100)+' points to redeem</div>';
+    }
+  }
+  h+='</div></div>';
+}
+ h+='<div class="step"><div class="step-head"><span class="step-num">3</span><span class="step-title">Payment</span></div><div class="step-box" style="padding:14px">';
+ h+='<div class="payopt sel" onclick="S.pickPay(\'upi\',this)"><div class="pay-radio"></div><span class="pay-em">\ud83d\udcf1</span><div class="pay-info"><h4>UPI / QR</h4><p>Paytm, GPay, PhonePe</p></div></div>';
+ h+='<div class="payopt" onclick="S.pickPay(\'counter\',this)"><div class="pay-radio"></div><span class="pay-em">\ud83d\udcb5</span><div class="pay-info"><h4>Pay at Counter</h4><p>Cash or card</p></div></div></div></div>';
+ h+='<div class="step"><div class="qr-sec show" id="qrSec"><div class="qr-card"><div class="qr-top"><div class="qb">paytm</div><div><div class="qn">'+CFG.upiName+'</div><div class="qp">'+CFG.upiPhone+'</div></div></div><div class="qr-mid"><div class="qt">Scan to Pay</div><div class="qr-box"><img src="'+qrUrl+'" alt="QR"></div><div class="qu">UPI: <strong>'+CFG.upiId+'</strong></div></div><div class="qr-btm">BHIM | UPI</div></div>';
+ h+='<div class="amt-badge"><div class="al">Amount</div><div class="av">\u20b9'+c.total+'</div></div>';
+ h+='<div class="upi-copy"><code>'+CFG.upiId+'</code><button onclick="S.cpUPI()">Copy</button></div></div></div>';
+ h+='<div class="step"><button class="confirm-btn" onclick="S.placeOrder()"><i class="fas fa-check-circle"></i> Confirm Order - \u20b9'+c.total+'</button></div>';
+ h+='<div style="height:60px"></div></div>';
+ document.getElementById("ckScroll").innerHTML=h;pMethod="upi";
 }
 function closeCk(){document.getElementById("ckScreen").classList.remove("open");document.body.style.overflow=""}
 function fillPromo(code){var el=document.getElementById("promoIn");if(el)el.value=code}
-function applyPromo(){var inp=document.getElementById("promoIn"),msg=document.getElementById("promoMsg");if(!inp||!msg)return;var code=(inp.value||"").trim().toUpperCase();msg.className="promo-msg";msg.style.display="none";promoCode=null;promoDisc=0;if(!code){msg.className="promo-msg err";msg.innerHTML="<i class='fas fa-times-circle'></i> Enter a code";msg.style.display="flex";return}if(!PROMOS[code]){msg.className="promo-msg err";msg.innerHTML="<i class='fas fa-times-circle'></i> Invalid: "+code;msg.style.display="flex";return}var p=PROMOS[code],s=subtotal();if(s<p.min){msg.className="promo-msg err";msg.innerHTML="<i class='fas fa-info-circle'></i> Min ₹"+p.min+" required";msg.style.display="flex";return}promoCode=code;var d=discount(s);promoDisc=d;msg.className="promo-msg ok";msg.innerHTML="<i class='fas fa-check-circle'></i> "+p.label+" applied! Save ₹"+d;msg.style.display="flex";buildCk();toast("Promo applied! 🎉")}
+function applyPromo(){
+  var inp=document.getElementById("promoIn"),msg=document.getElementById("promoMsg");
+  if(!inp||!msg)return;
+  var code=(inp.value||"").trim().toUpperCase();
+  msg.className="promo-msg";msg.style.display="none";promoCode=null;promoDisc=0;
+  if(!code){msg.className="promo-msg err";msg.innerHTML="<i class='fas fa-times-circle'></i> Enter a code";msg.style.display="flex";return}
+  
+  var p=PROMOS[code]||null;
+  
+  // Check Firebase promos if not found locally
+  if(!p){
+    try{
+      var fbp=JSON.parse(localStorage.getItem("sd_promos"))||[];
+      for(var i=0;i<fbp.length;i++){
+        var fp=fbp[i];
+        if(fp.code===code&&fp.active!==false){
+          if(fp.until&&new Date(fp.until)<new Date())continue;
+          var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
+          var mx=ty==="pct"?Math.round(fp.value*5):fp.value;
+          p={type:ty,val:fp.value||0,min:fp.minOrder||0,max:mx,label:fp.desc||code};
+          break;
+        }
+      }
+    }catch(e){}
+  }
+  
+  if(!p){msg.className="promo-msg err";msg.innerHTML="<i class='fas fa-times-circle'></i> Invalid: "+code;msg.style.display="flex";return}
+  var s=subtotal();
+  if(s<p.min){msg.className="promo-msg err";msg.innerHTML="<i class='fas fa-info-circle'></i> Min \u20b9"+p.min+" required";msg.style.display="flex";return}
+  promoCode=code;PROMOS[code]=p;
+  var d=discount(s);promoDisc=d;
+  msg.className="promo-msg ok";msg.innerHTML="<i class='fas fa-check-circle'></i> "+p.label+" applied! Save \u20b9"+d;msg.style.display="flex";
+  buildCk();toast("Promo applied! \ud83c\udf89");
+}
+function applyLoyaltyDiscount(){
+  var pts=0;try{pts=parseInt(localStorage.getItem("sliceDelightPts"))||0}catch(e){}
+  var lc=null;try{lc=JSON.parse(localStorage.getItem("sd_loy"))}catch(e){}
+  if(!lc||!lc.enabled){toast("Loyalty not available");return}
+  if(pts<(lc.minRedeem||100)){toast("Min "+(lc.minRedeem||100)+" points needed");return}
+  var pv=lc.pv||0.5;var maxPct=lc.maxPct||20;var sub=subtotal();
+  var maxDisc=Math.floor(sub*maxPct/100);
+  var pointVal=Math.floor(pts*pv);
+  var disc=Math.min(pointVal,maxDisc);
+  if(disc<=0){toast("Not enough for a discount");return}
+  loyaltyDiscount=disc;loyaltyPointsUsed=Math.ceil(disc/pv);
+  buildCk();toast("\ud83c\udf89 \u20b9"+disc+" loyalty discount applied!");
+}
+function removeLoyaltyDiscount(){
+  loyaltyDiscount=0;loyaltyPointsUsed=0;buildCk();toast("Loyalty discount removed");
+}
 function pickPay(m,el){pMethod=m;document.querySelectorAll(".payopt").forEach(function(o){o.classList.remove("sel")});el.classList.add("sel");var qr=document.getElementById("qrSec");if(qr){if(m==="upi")qr.classList.add("show");else qr.classList.remove("show")}}
 function cpUPI(){if(navigator.clipboard)navigator.clipboard.writeText(CFG.upiId).then(function(){toast("UPI copied!")})}
 function copyOffer(code){if(navigator.clipboard)navigator.clipboard.writeText(code).then(function(){toast("Code "+code+" copied! 📋")})}
@@ -1963,6 +2427,13 @@ orderN++;localStorage.setItem("sliceDelightOrderN",orderN.toString());
 var oid="SD-"+orderN;var c=totals();var now=Date.now();
 var pts=Math.floor(c.total/10);
 try{var ep=parseInt(localStorage.getItem("sliceDelightPts"))||0;localStorage.setItem("sliceDelightPts",(ep+pts).toString())}catch(e){}
+// Deduct loyalty points used
+if(loyaltyPointsUsed>0){
+  try{var curPts=parseInt(localStorage.getItem("sliceDelightPts"))||0;
+  curPts-=loyaltyPointsUsed;if(curPts<0)curPts=0;
+  localStorage.setItem("sliceDelightPts",curPts.toString())}catch(e){}
+}
+loyaltyDiscount=0;loyaltyPointsUsed=0;
 
 // BUILD ITEMS AS AN ARRAY (this is what the admin expects)
 var orderItems=[];
@@ -2094,30 +2565,56 @@ function showTracker(){document.getElementById("orderTracker").classList.add("sh
 function openHistory(){renderHistory();document.getElementById("historyOverlay").classList.add("open");document.body.style.overflow="hidden"}
 function closeHistory(){document.getElementById("historyOverlay").classList.remove("open");document.body.style.overflow=""}
 function renderHistory(){
-var body=document.getElementById("historyBody");var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
-var user=AUTH.getUser();var phone=(user&&user.phone)||"";
-var filtered=phone?orders.filter(function(o){return o.phone===phone}):orders;
-filtered.sort(function(a,b){return new Date(b.placedAt)-new Date(a.placedAt)});
-if(!filtered.length){body.innerHTML='<div class="history-empty"><i class="fas fa-clock-rotate-left"></i><p>No orders yet</p></div>';return}
-var h="";filtered.forEach(function(order){
-var cls="pending",txt="Pending";if(order.status==="preparing"){cls="preparing";txt="Preparing"}else if(order.status==="accepted"){cls="preparing";txt="Accepted"}else if(order.status==="out"||order.status==="outfordelivery"){cls="out";txt="Out for Delivery"}else if(order.status==="delivered"){cls="delivered";txt="Delivered"}
-h+='<div class="history-item"><div class="history-item-head"><div><div class="history-item-id">'+order.id+'</div><div class="history-item-date">'+formatDate(order.placedAt)+'</div></div><div class="history-item-status '+cls+'"><i class="fas fa-circle" style="font-size:6px"></i> '+txt+'</div></div>';
-h+='<div class="history-item-items">';
-if(Array.isArray(order.items)){
-    order.items.forEach(function(item){h+=item.name+' \u00d7'+item.qty+'<br>'});
-} else if(order.itemNames){
-    if(Array.isArray(order.items)){
-    order.items.forEach(function(item){var it=find(item.id);if(it&&it.on!==false){cart[item.id]=item.qty;added++}});
-} else {
-    for(var iid in order.items){if(order.items.hasOwnProperty(iid)){var it=find(iid);if(it&&it.on!==false){cart[iid]=order.items[iid];added++}}}
+ var body=document.getElementById("historyBody");
+ var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
+ var user=AUTH.getUser();var phone=(user&&user.phone)||"";
+ var filtered=phone?orders.filter(function(o){return o.phone===phone||o.customerPhone===phone}):orders;
+ filtered.sort(function(a,b){return(b.timestamp||0)-(a.timestamp||0)});
+ if(!filtered.length){body.innerHTML='<div class="history-empty"><i class="fas fa-clock-rotate-left"></i><p>No orders yet</p></div>';return}
+ var h="";filtered.forEach(function(order){
+  var cls="pending",txt="Pending";
+  if(order.status==="preparing"){cls="preparing";txt="Preparing"}
+  else if(order.status==="accepted"){cls="preparing";txt="Accepted"}
+  else if(order.status==="out"||order.status==="outfordelivery"){cls="out";txt="Out for Delivery"}
+  else if(order.status==="delivered"){cls="delivered";txt="Delivered"}
+  else if(order.status==="rejected"){cls="pending";txt="Rejected"}
+  h+='<div class="history-item"><div class="history-item-head"><div><div class="history-item-id">'+(order.id||order.orderId||"")+'</div><div class="history-item-date">'+formatDate(order.placedAt||order.timestamp)+'</div></div><div class="history-item-status '+cls+'"><i class="fas fa-circle" style="font-size:6px"></i> '+txt+'</div></div>';
+  h+='<div class="history-item-items">';
+  if(Array.isArray(order.items)){
+   order.items.forEach(function(item){
+    h+=item.name+' \u00d7'+(item.qty||1)+'<br>';
+   });
+  }
+  h+='</div>';
+  h+='<div class="history-item-total">\u20b9'+(order.total||0)+'</div>';
+  h+='<button class="reorder-btn" onclick="S.reorder(\''+(order.id||order.orderId)+'\')"><i class="fas fa-redo"></i> Reorder</button></div>';
+ });
+ body.innerHTML=h;
 }
+function reorder(orderId){
+ var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
+ var order=null;
+ for(var i=0;i<orders.length;i++){
+  if((orders[i].id||orders[i].orderId)===orderId){order=orders[i];break}
+ }
+ if(!order||!order.items)return;
+ var added=0;
+ if(Array.isArray(order.items)){
+  order.items.forEach(function(item){
+   var it=find(item.id);
+   if(it&&it.on!==false){
+    cart[item.id]=(item.qty||1);
+    added++;
+   }
+  });
+ }
+ if(added){
+  saveCart();updateBadges();render();renderBestsellers();
+  closeHistory();toast("Added "+added+" items! \ud83d\uded2");openCart();
+ } else {
+  toast("No available items to reorder");
+ }
 }
-h+='</div>';
-h+='<div class="history-item-total">₹'+order.total+'</div>';
-h+='<button class="reorder-btn" onclick="S.reorder(\''+order.id+'\')"><i class="fas fa-redo"></i> Reorder</button></div>';
-});body.innerHTML=h;
-}
-function reorder(orderId){var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}var order=null;for(var i=0;i<orders.length;i++){if(orders[i].id===orderId){order=orders[i];break}}if(!order)return;var added=0;for(var iid in order.items){if(order.items.hasOwnProperty(iid)){var it=find(iid);if(it&&it.on!==false){cart[iid]=order.items[iid];added++}}}if(added){saveCart();updateBadges();render();renderBestsellers();closeHistory();toast("Added "+added+" items! 🛒");openCart()}}
 
 function toggleTheme(){document.body.classList.toggle("light");var isL=document.body.classList.contains("light");localStorage.setItem("sliceDelightTheme",isL?"light":"dark");var i=document.getElementById("themeIcon");if(i)i.className=isL?"fas fa-sun":"fas fa-moon";var p=document.getElementById("profileThemeIcon");if(p)p.className=isL?"fas fa-sun":"fas fa-moon";toast(isL?"Light mode ☀️":"Dark mode 🌙")}
 function loadTheme(){if(localStorage.getItem("sliceDelightTheme")==="light"){document.body.classList.add("light");var i=document.getElementById("themeIcon");if(i)i.className="fas fa-sun"}}
@@ -2137,7 +2634,148 @@ AUTH.init();APP.init();
 }
 init();
 
-return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilter:doFilter,goCheckout:goCheckout,closeCk:closeCk,fillPromo:fillPromo,applyPromo:applyPromo,pickPay:pickPay,cpUPI:cpUPI,placeOrder:placeOrder,closeSuc:closeSuc,toggleTracker:toggleTracker,hideTracker:hideTracker,showTracker:showTracker,openHistory:openHistory,closeHistory:closeHistory,openItemModal:openItemModal,closeItemModal:closeItemModal,addModal:addModal,chgModal:chgModal,toggleFav:toggleFav,toggleTheme:toggleTheme,mobNav:mobNav,showSuggest:showSuggest,hideSuggest:hideSuggest,shareOrder:shareOrder,copyOffer:copyOffer,reorder:reorder,toast:toast,onAuthComplete:onAuthComplete};
+return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilter:doFilter,goCheckout:goCheckout,closeCk:closeCk,fillPromo:fillPromo,applyPromo:applyPromo,pickPay:pickPay,cpUPI:cpUPI,placeOrder:placeOrder,closeSuc:closeSuc,toggleTracker:toggleTracker,hideTracker:hideTracker,showTracker:showTracker,openHistory:openHistory,closeHistory:closeHistory,openItemModal:openItemModal,closeItemModal:closeItemModal,addModal:addModal,chgModal:chgModal,toggleFav:toggleFav,toggleTheme:toggleTheme,mobNav:mobNav,showSuggest:showSuggest,hideSuggest:hideSuggest,shareOrder:shareOrder,copyOffer:copyOffer,reorder:reorder,toast:toast,onAuthComplete:onAuthComplete,applyLoyaltyDiscount:applyLoyaltyDiscount,removeLoyaltyDiscount:removeLoyaltyDiscount};
+})();
+</script>
+<script>
+(function(){
+  var db;
+  try{db=firebase.database()}catch(e){console.error("FB not ready:",e);return}
+  var _origSet=Storage.prototype.setItem;
+  var _storeOpen=true;
+
+  /* Push orders to Firebase when localStorage changes */
+  Storage.prototype.setItem=function(key,value){
+    _origSet.call(this,key,value);
+    if(key==="sd_orders"){
+      try{
+        var arr=JSON.parse(value)||[];
+        var fbData={};
+        arr.forEach(function(o){
+          var id=(o.id||o.orderId||"ord_"+Date.now()).replace(/[.#$\/\[\]]/g,"_");
+          fbData[id]=o;
+        });
+        db.ref("orders").set(fbData);
+      }catch(e){console.error("Order sync err:",e)}
+    }
+  };
+
+  /* ── MENU: Firebase → update items + re-render ── */
+ db.ref("menu").on("value",function(snap){
+  var d=snap.val();
+  if(!d)return;
+  var arr=Array.isArray(d)?d:Object.values(d);
+  if(!arr.length)return;
+  _origSet.call(localStorage,"sliceDelightMenu",JSON.stringify(arr));
+  /* Force page to pick up new menu */
+  try{
+    window.dispatchEvent(new StorageEvent("storage",{
+      key:"sliceDelightMenu",
+      newValue:JSON.stringify(arr),
+      storageArea:localStorage
+    }));
+  }catch(e){
+    /* Fallback: reload page */
+    location.reload();
+  }
+});
+  /* ── CONFIG: store status, dine-in, delivery charges ── */
+  db.ref("config").on("value",function(snap){
+    var d=snap.val();
+    if(!d||typeof d!=="object")return;
+    _origSet.call(localStorage,"sliceDelightSettings",JSON.stringify(d));
+    _storeOpen=d.storeOpen!==false;
+
+    /* Store closed banner */
+    if(!_storeOpen){
+      if(!document.getElementById("storeClosedOverlay")){
+        var ov=document.createElement("div");
+        ov.id="storeClosedOverlay";
+        ov.style.cssText="position:fixed;top:0;left:0;right:0;z-index:800;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:14px 24px;text-align:center;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(239,68,68,.4)";
+        ov.innerHTML='<i class="fas fa-store-slash"></i> Restaurant is currently closed. We will be back soon!';
+        document.body.appendChild(ov);
+      }
+    }else{
+      var ex=document.getElementById("storeClosedOverlay");
+      if(ex)ex.parentNode.removeChild(ex);
+    }
+
+    /* Dine-in toggle */
+    if(d.dineInEnabled===false){
+      var diBtn=document.querySelector('.type-btn[onclick*="dinein"]');
+      if(diBtn)diBtn.style.display="none";
+    }else{
+      var diBtn2=document.querySelector('.type-btn[onclick*="dinein"]');
+      if(diBtn2)diBtn2.style.display="";
+    }
+  });
+
+  /* ── PROMOS: Firebase → localStorage ── */
+  db.ref("promos").on("value",function(snap){
+    var d=snap.val();
+    if(d&&Array.isArray(d))_origSet.call(localStorage,"sd_promos",JSON.stringify(d));
+  });
+
+  /* ── LOYALTY: Firebase → localStorage ── */
+  db.ref("loyalty").on("value",function(snap){
+    var d=snap.val();
+    if(d&&typeof d==="object")_origSet.call(localStorage,"sd_loy",JSON.stringify(d));
+  });
+
+  /* ── ZONES: Firebase → localStorage ── */
+  db.ref("zones").on("value",function(snap){
+    var d=snap.val();
+    if(d&&Array.isArray(d))_origSet.call(localStorage,"sd_zones",JSON.stringify(d));
+  });
+
+  /* ── Block ordering when store is closed ── */
+  var _origAdd=S.add;
+  S.add=function(id){
+    if(!_storeOpen){S.toast("Sorry, the restaurant is currently closed");return}
+    _origAdd.call(this,id);
+  };
+
+  var _origGoCheckout=S.goCheckout;
+  S.goCheckout=function(){
+    if(!_storeOpen){S.toast("Sorry, the restaurant is currently closed");return}
+    _origGoCheckout.apply(this,arguments);
+  };
+
+  var _origPlaceOrder=S.placeOrder;
+  S.placeOrder=function(){
+    if(!_storeOpen){S.toast("Restaurant is currently closed");return}
+    _origPlaceOrder.apply(this,arguments);
+  };
+
+  /* ── ORDER STATUS from Firebase (replaces polling) ── */
+  setInterval(function(){
+    var activeId=localStorage.getItem("sliceDelightActiveOrder");
+    if(!activeId)return;
+    var safeId=activeId.replace(/[.#$\/\[\]]/g,"_");
+    db.ref("orders/"+safeId).once("value",function(snap){
+      var fb=snap.val();
+      if(!fb)return;
+      try{
+        var local=JSON.parse(localStorage.getItem("sd_orders"))||[];
+        var changed=false;
+        for(var i=0;i<local.length;i++){
+          if((local[i].id||local[i].orderId)===(fb.id||fb.orderId)){
+            if(fb.status&&fb.status!==local[i].status){
+              local[i].status=fb.status;
+              local[i].waitTime=fb.waitTime||"";
+              local[i].acceptedAt=fb.acceptedAt||"";
+              local[i].deliveredAt=fb.deliveredAt||"";
+              changed=true;
+            }
+            break;
+          }
+        }
+        if(changed)_origSet.call(localStorage,"sd_orders",JSON.stringify(local));
+      }catch(e){}
+    });
+  },3000);
+
+  console.log("Index Firebase FULL SYNC active");
 })();
 </script>
 </body>
