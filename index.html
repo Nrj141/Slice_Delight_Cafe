@@ -2961,6 +2961,7 @@ function onAuthComplete(){var user=AUTH.getUser();if(user)toast("Welcome, "+user
 
 function init(){
 loadTheme();render();renderBestsellers();updateBadges();
+try{var _st=JSON.parse(localStorage.getItem("sliceDelightSettings"));if(_st&&_st.heroImage){var _hi=document.querySelector('.hero-main-img');if(_hi)_hi.src=_st.heroImage}}catch(e){}
 if(activeOrderId)startStatusPolling();
 window.addEventListener("storage",function(e){
 if(e.key==="sd_orders")updateTrackerDisplay();
@@ -3022,6 +3023,7 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
   _origSet.call(localStorage,"sliceDelightSettings",JSON.stringify(d));
   _storeOpen=d.storeOpen!==false;
   _dineInEnabled=d.dineInEnabled!==false;
+  if(d.heroImage){var heroImg=document.querySelector('.hero-main-img');if(heroImg)heroImg.src=d.heroImage}
 
   if(!_storeOpen){
    if(!document.getElementById("storeClosedOverlay")){
