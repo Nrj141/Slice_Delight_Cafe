@@ -2386,11 +2386,13 @@ function applyPromo(){
       var fbp=JSON.parse(localStorage.getItem("sd_promos"))||[];
       for(var i=0;i<fbp.length;i++){
         var fp=fbp[i];
-        if(fp.code===code&&fp.active!==false){
-          if(fp.until&&new Date(fp.until)<new Date())continue;
-          var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
-          var mx=ty==="pct"?Math.round(fp.value*5):fp.value;
-          p={type:ty,val:fp.value||0,min:fp.minOrder||0,max:mx,label:fp.desc||code};
+         var fpCode=(fp.code||"").toUpperCase();
+ if(fpCode===code&&fp.active!==false){
+ if(fp.until&&new Date(fp.until)<new Date())continue;
+ var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
+ var mx=ty==="pct"?Math.round((fp.value||0)*5):(fp.value||0);
+ if(fp.maxUses&&fp.used>=fp.maxUses)continue;
+ p={type:ty,val:fp.value||0,min:fp.minOrder||0,max:mx||fp.value||0,label:fp.desc||code};
           break;
         }
       }
