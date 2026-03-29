@@ -2381,18 +2381,21 @@ function applyPromo(){
   var p=PROMOS[code]||null;
   
   // Check Firebase promos if not found locally
-  if(!p){
-    try{
-      var fbp=JSON.parse(localStorage.getItem("sd_promos"))||[];
-      for(var i=0;i<fbp.length;i++){
-        var fp=fbp[i];
-         var fpCode=(fp.code||"").toUpperCase();
+   if(!p){
+ try{
+ var rawPromos=JSON.parse(localStorage.getItem("sd_promos"));
+ var fbp=[];
+ if(Array.isArray(rawPromos)){fbp=rawPromos}
+ else if(rawPromos&&typeof rawPromos==="object"){fbp=Object.values(rawPromos)}
+ for(var i=0;i<fbp.length;i++){
+ var fp=fbp[i];
+ if(!fp||!fp.code)continue;
+ var fpCode=(fp.code||"").toUpperCase();
  if(fpCode===code&&fp.active!==false){
- if(fp.until&&new Date(fp.until)<new Date())continue;
- var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
- var mx=ty==="pct"?Math.round((fp.value||0)*5):(fp.value||0);
- if(fp.maxUses&&fp.used>=fp.maxUses)continue;
- p={type:ty,val:fp.value||0,min:fp.minOrder||0,max:mx||fp.value||0,label:fp.desc||code};
+          if(fp.until&&new Date(fp.until)<new Date())continue;
+          var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
+          var mx=ty==="pct"?Math.round(fp.value*5):fp.value;
+          p={type:ty,val:fp.value||0,min:fp.minOrder||0,max:mx,label:fp.desc||code};
           break;
         }
       }
@@ -2715,26 +2718,35 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
     }
 
     /* Dine-in toggle */
-    if(d.dineInEnabled===false){
-      var diBtn=document.querySelector('.type-btn[onclick*="dinein"]');
-      if(diBtn)diBtn.style.display="none";
-    }else{
-      var diBtn2=document.querySelector('.type-btn[onclick*="dinein"]');
-      if(diBtn2)diBtn2.style.display="";
-    }
+     if(d.dineInEnabled===false){
+ var diBtn=document.querySelector('.type-btn[onclick*="dinein"]');
+ if(diBtn)diBtn.style.display="none";
+ var delBtn=document.querySelector('.type-btn[onclick*="delivery"]');
+ if(delBtn&&!delBtn.classList.contains("on")){delBtn.click()}
+ var gt=document.getElementById("gTable");if(gt)gt.style.display="none";
+ var ga=document.getElementById("gAddr");if(ga)ga.classList.add("show");
+ }else{
+ var diBtn2=document.querySelector('.type-btn[onclick*="dinein"]');
+ if(diBtn2)diBtn2.style.display="";
+ }
   });
 
   /* ── PROMOS: Firebase → localStorage ── */
-  db.ref("promos").on("value",function(snap){
-    var d=snap.val();
-    if(d&&Array.isArray(d))_origSet.call(localStorage,"sd_promos",JSON.stringify(d));
-  });
+   db.ref("promos").on("value",function(snap){
+ var d=snap.val();
+ if(!d)return;
+ var arr=Array.isArray(d)?d:Object.values(d);
+ _origSet.call(localStorage,"sd_promos",JSON.stringify(arr));
+ }); 
 
   /* ── LOYALTY: Firebase → localStorage ── */
-  db.ref("loyalty").on("value",function(snap){
-    var d=snap.val();
-    if(d&&typeof d==="object")_origSet.call(localStorage,"sd_loy",JSON.stringify(d));
-  });
+   db.ref("loyalty").on("value",function(snap){
+ var d=snap.val();
+ if(d&&typeof d==="object"){
+ _origSet.call(localStorage,"sd_loy",JSON.stringify(d));
+ if(typeof S!=="undefined"&&S.toast){/* silently updated */}
+ }
+ });
 
   /* ── ZONES: Firebase → localStorage ── */
   db.ref("zones").on("value",function(snap){
