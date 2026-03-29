@@ -850,6 +850,79 @@ body{padding-bottom:var(--bot-h)}
 .otp-input{width:42px;height:50px;font-size:18px;border-radius:10px}
 .auth-title{font-size:24px}
 }
+/* ============ MOBILE VISIBILITY FIXES ============ */
+@media(max-width:768px){
+ .hero-chip{font-size:11px;padding:5px 12px}
+ .hero-desc{font-size:14px;line-height:1.5}
+ .hero-buttons{gap:10px}
+ .btn-hero,.btn-hero-o{padding:12px 24px;font-size:14px}
+ .hero-stats .hero-stat .val{font-size:20px}
+ .hero-stats .hero-stat .lbl{font-size:10px}
+ .offer-card .oc-title{font-size:15px}
+ .offer-card .oc-desc{font-size:11px}
+ .sec-head h2{font-size:24px}
+ .sec-head p{font-size:13px}
+ .card-add-btn{padding:8px 16px;font-size:11px;gap:4px}
+ .card-price{font-size:16px}
+ .card-cat{font-size:9px;letter-spacing:1px}
+ .card-veg{font-size:9px}
+ .ci-name{font-size:12px}
+ .ci-price{font-size:13px}
+ .sr{font-size:12px}
+ .sr.total{font-size:17px}
+ .checkout-btn{font-size:14px;padding:14px}
+ .promo-bar span{font-size:12px}
+ .about-feats .af{padding:14px}
+ .af h4{font-size:13px}
+ .af p{font-size:11px}
+ .foot-col h4{font-size:13px}
+ .foot-col a,.foot-col p{font-size:12px}
+ .foot-brand p{font-size:12px}
+ .type-btn{font-size:12px;padding:10px}
+ .fg label{font-size:10px}
+ .fg input,.fg textarea,.fg select{font-size:13px;padding:10px 12px}
+ .im-name{font-size:20px}
+ .im-price-big{font-size:24px}
+ .im-desc-full{font-size:13px}
+ .im-meta-pill{font-size:11px;padding:5px 10px}
+ .im-foot-price{font-size:20px}
+ .im-foot-add{font-size:13px;padding:12px}
+ .confirm-btn{font-size:15px;padding:16px}
+ .step-title{font-size:12px}
+ .ck-row{font-size:13px}
+ .ck-total{font-size:18px}
+ .history-item-id{font-size:13px}
+ .history-item-total{font-size:15px}
+ .history-item-items{font-size:11px}
+ .reorder-btn{font-size:12px;padding:8px}
+ .auth-title{font-size:22px}
+ .auth-subtitle{font-size:13px}
+ .auth-phone-input{font-size:15px}
+ .auth-name-input{font-size:14px}
+ .auth-send-btn,.auth-verify-btn{font-size:14px;padding:14px}
+ .location-title{font-size:20px}
+ .location-desc{font-size:13px}
+ .location-detect-btn{font-size:14px;padding:14px}
+ .wallet-balance-amount{font-size:36px}
+ .rating-title{font-size:20px}
+ .profile-user-name{font-size:18px}
+ .nav-icon-btn{width:34px;height:34px;font-size:14px}
+ .cart-pill{padding:8px 16px;font-size:13px}
+ .search-wrap input{font-size:13px;padding:12px 16px 12px 42px}
+}
+@media(max-width:380px){
+ .hero h1{font-size:24px}
+ .btn-hero,.btn-hero-o{padding:10px 18px;font-size:13px}
+ .menu-grid,.bestseller-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+ .card-img{height:110px}
+ .card-body{padding:10px}
+ .card-title{font-size:12px}
+ .card-price{font-size:15px}
+ .card-add-btn{padding:6px 12px;font-size:10px}
+ .otp-input{width:38px;height:46px;font-size:16px;border-radius:8px}
+ .offer-card{min-width:230px;padding:16px 18px}
+ .ftag{padding:7px 12px;font-size:11px}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -1319,13 +1392,24 @@ if(btn){btn.classList.add("loading");btn.disabled=true}
 if(navigator.geolocation){
 navigator.geolocation.getCurrentPosition(function(pos){
 if(btn){btn.classList.remove("loading");btn.disabled=false}
-var cities=["Manjri Budruk, Pune","Hadapsar, Pune","Kharadi, Pune","Magarpatta, Pune","Viman Nagar, Pune","Koregaon Park, Pune"];
-var city=cities[Math.floor(Math.random()*cities.length)];
-var addr=city+", Maharashtra "+Math.floor(411000+Math.random()*50);
+var lat=pos.coords.latitude;
+var lng=pos.coords.longitude;
+fetch("https://nominatim.openstreetmap.org/reverse?format=json&lat="+lat+"&lon="+lng+"&zoom=18&addressdetails=1")
+.then(function(r){return r.json()})
+.then(function(data){
+var addr=data.display_name||("Lat: "+lat.toFixed(4)+", Lng: "+lng.toFixed(4));
 if(resultText)resultText.textContent=addr;
 if(result)result.classList.add("show");
 if(cont)cont.classList.add("show");
 try{localStorage.setItem("sliceDelightLocation",addr)}catch(e){}
+})
+.catch(function(){
+var addr="Lat: "+lat.toFixed(4)+", Lng: "+lng.toFixed(4);
+if(resultText)resultText.textContent=addr;
+if(result)result.classList.add("show");
+if(cont)cont.classList.add("show");
+try{localStorage.setItem("sliceDelightLocation",addr)}catch(e){}
+});
 },function(err){
 if(btn){btn.classList.remove("loading");btn.disabled=false}
 showManualAddr();
