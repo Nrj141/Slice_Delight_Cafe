@@ -1715,7 +1715,7 @@ h+='<div class="wallet-balance-sub">1 point = ₹'+_wPV+' · Earn '+_wPPR+' poin
 h+='<button class="wallet-redeem-btn" onclick="APP.redeemPoints()"'+(pts<100?' disabled':'')+' ><i class="fas fa-gift"></i> Redeem '+Math.floor(pts/10)+' Points (₹'+Math.floor(pts/10)+')</button>';
 if(pts<100)h+='<div style="text-align:center;font-size:12px;color:var(--muted2);margin-top:6px">Min 100 points required to redeem</div>';
 
-h+='<div class="referral-card"><h3>🎁 Refer & Earn</h3><p>Share your referral code with friends. 'You get '+_wRef+' pts, friend gets '+_wWel+' pts!'</p>';
+h+='<div class="referral-card"><h3>🎁 Refer & Earn</h3><p>Share your referral code with friends.You get '+_wRef+' pts, friend gets '+_wWel+' pts!</p>';
 h+='<div class="referral-code-box"><span class="referral-code">'+referralCode+'</span><button class="referral-copy" onclick="APP.copyReferral(\''+referralCode+'\')"><i class="fas fa-copy"></i> Copy</button></div>';
 h+='<div class="referral-share"><button class="rf-wa" onclick="APP.shareReferral(\'wa\',\''+referralCode+'\')"><i class="fab fa-whatsapp"></i></button>';
 h+='<button class="rf-tw" onclick="APP.shareReferral(\'tw\',\''+referralCode+'\')"><i class="fab fa-twitter"></i></button>';
@@ -2472,7 +2472,8 @@ var AUTH = (function () {
         h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openHistory()"><div class="profile-menu-icon"><i class="fas fa-clock-rotate-left"></i></div><div class="profile-menu-text"><h4>Order History</h4><p>'+uo.length+' orders</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
         h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openWallet()"><div class="profile-menu-icon"><i class="fas fa-wallet"></i></div><div class="profile-menu-text"><h4>My Wallet</h4><p>'+pts+' points</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
         h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openAddrMgr()"><div class="profile-menu-icon"><i class="fas fa-map-marker-alt"></i></div><div class="profile-menu-text"><h4>My Addresses</h4><p>Manage addresses</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View & checkout</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i>h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openFavorites()"><div class="profile-menu-icon" style="background:rgba(239,68,68,.1)"><i class="fas fa-heart" style="color:var(--red)"></i></div><div class="profile-menu-text"><h4>My Favorites</h4><p>'+Object.keys(favorites).length+' items</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';</div>';
+        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View cart</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openFavorites()"><div class="profile-menu-icon" style="background:rgba(239,68,68,.1)"><i class="fas fa-heart" style="color:var(--red)"></i></div><div class="profile-menu-text"><h4>My Favorites</h4><p>Saved items</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
         h+="</div>";
         h+='<button class="profile-logout" onclick="AUTH.logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>';
 
@@ -2744,7 +2745,6 @@ function applyPromo(){
  var fp=fbp[i];
  if(!fp||!fp.code)continue;
  var fpCode=(fp.code||"").toUpperCase();
-  var fpCode=(fp.code||"").toUpperCase();
  if(fpCode===code&&fp.active!==false){
           if(fp.until&&new Date(fp.until)<new Date())continue;
           var ty=fp.type==="percent"?"pct":fp.type==="freedelivery"?"free":"flat";
@@ -2830,6 +2830,7 @@ var orderObj={
     customerName:user.name,
     phone:user.phone,
     customerPhone:user.phone,
+    email:user.email||"",
     
     // Order type — admin uses 'orderType'
     orderType:oType,
@@ -2964,7 +2965,11 @@ function renderHistory(){
  var body=document.getElementById("historyBody");
  var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
  var user=AUTH.getUser();var phone=(user&&user.phone)||"";
- var filtered=phone?orders.filter(function(o){return o.phone===phone||o.customerPhone===phone}):orders;
+ var email=(user&&user.email)||"";
+ var filtered;
+ if(phone){filtered=orders.filter(function(o){return o.phone===phone||o.customerPhone===phone})}
+ else if(email){filtered=orders.filter(function(o){return o.email===email})}
+ else{filtered=[]}
  filtered.sort(function(a,b){return(b.timestamp||0)-(a.timestamp||0)});
  if(!filtered.length){body.innerHTML='<div class="history-empty"><i class="fas fa-clock-rotate-left"></i><p>No orders yet</p></div>';return}
  var h="";filtered.forEach(function(order){
