@@ -172,7 +172,11 @@ td{font-size:13px}
 .fg label{display:block;font-size:10px;color:var(--text3);margin-bottom:6px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .fg input,.fg select,.fg textarea{width:100%;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);color:#fff;font-size:13px;transition:.3s}
 .fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accentG)}
-.fg select option{background:var(--bg)}
+.fg select option{background:#0e0e22;color:#f2f2f8}
+.oc-acts select option{background:#0e0e22;color:#f2f2f8}
+#liveFilter option,#histFilter option,#menuCatFilter option,
+#rptStatus option,#rptPayment option,#rptCategory option,
+#rptQuick option,#fbFilter option{background:#0e0e22;color:#f2f2f8}
 .fg textarea{height:80px;resize:none}
 .fg-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .fg-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
@@ -520,7 +524,7 @@ th,td{padding:8px 10px}
  </div>
 
  <div class="side-section"><div class="side-label">Overview</div><ul class="side-nav">
-  <li><a href="#" class="active" onclick="event.preventDefault();go('dashboard',this)"><i class="fas fa-objects-column"></i> Dashboard</a></li>
+  <li><a href="#" class="active" onclick="event.preventDefault();go('dashboard',this)"><i class="fas fa-th-large"></i> Dashboard</a></li>
   <li><a href="#" onclick="event.preventDefault();go('orders',this)"><i class="fas fa-bell"></i> Live Orders <span class="nbadge" id="oBdg" style="display:none">0</span></a></li>
   <li><a href="#" onclick="event.preventDefault();go('menu',this)"><i class="fas fa-utensils"></i> Menu</a></li>
  </ul></div>
@@ -550,7 +554,7 @@ th,td{padding:8px 10px}
 <main class="content">
  <!-- DASHBOARD -->
  <div class="page active" id="page-dashboard">
-  <div class="ph"><h2><div class="ph-icon" style="background:var(--accentG);color:var(--accent)"><i class="fas fa-objects-column"></i></div> Dashboard</h2><div class="ph-actions"><button class="hbtn" onclick="renderDash()"><i class="fas fa-arrows-rotate"></i> Refresh</button></div></div>
+  <div class="ph"><h2><div class="ph-icon" style="background:var(--accentG);color:var(--accent)"><i class="fas fa-th-large"></i></div> Dashboard</h2><div class="ph-actions"><button class="hbtn" onclick="renderDash()"><i class="fas fa-arrows-rotate"></i> Refresh</button></div></div>
   <div class="banner">
    <h3>📊 Today's Performance</h3>
    <div class="ban-grid">
@@ -631,7 +635,9 @@ th,td{padding:8px 10px}
   <div class="ph">
    <h2><div class="ph-icon" style="background:var(--purpleG);color:var(--purple)"><i class="fas fa-clock-rotate-left"></i></div> Order History</h2>
    <div class="ph-actions">
-    <input type="date" id="histDate" onchange="renderHist()" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:12px">
+    <input type="date" id="histDateFrom" onchange="renderHist()" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:12px" title="From date" placeholder="From">
+<span style="color:var(--text4);font-size:11px;font-weight:700">to</span>
+<input type="date" id="histDateTo" onchange="renderHist()" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:12px" title="To date" placeholder="To">
     <select id="histFilter" onchange="renderHist()" style="padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:12px;font-weight:600"><option value="all">All</option><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="preparing">Preparing</option><option value="outfordelivery">Out for Delivery</option><option value="delivered">Delivered</option><option value="rejected">Rejected</option></select>
     <button class="hbtn" style="background:var(--redG);color:var(--red);border-color:rgba(239,68,68,.1)" onclick="clearDel()"><i class="fas fa-trash"></i> Clear Delivered</button>
    </div>
@@ -729,7 +735,11 @@ th,td{padding:8px 10px}
     </div>
    </div></div>
    <div class="card"><div class="card-h"><h3><i class="fas fa-clock" style="color:var(--purple)"></i> Timings</h3></div><div style="padding:22px">
-    <div class="fg-row"><div class="fg"><label>Opens At</label><input type="time" id="sOpen" value="10:00"></div><div class="fg"><label>Closes At</label><input type="time" id="sClose" value="23:00"></div></div>
+    <div id="timingSlotsBox">
+<div class="fg-row" data-slot="0"><div class="fg"><label>Slot 1 Opens</label><input type="time" class="tsOpen" value="10:00"></div><div class="fg"><label>Slot 1 Closes</label><input type="time" class="tsClose" value="15:00"></div></div>
+<div class="fg-row" data-slot="1"><div class="fg"><label>Slot 2 Opens</label><input type="time" class="tsOpen" value="17:00"></div><div class="fg"><label>Slot 2 Closes</label><input type="time" class="tsClose" value="23:00"></div></div>
+</div>
+<button class="hbtn" onclick="addTimeSlot()" style="margin-top:8px;width:100%;justify-content:center"><i class="fas fa-plus"></i> Add Slot</button>
    </div></div>
    <div class="card"><div class="card-h"><h3><i class="fas fa-shield-halved" style="color:var(--yellow)"></i> Security</h3></div><div style="padding:22px">
     <div class="fg"><label>Admin Password</label><input type="password" id="sPass" placeholder="New password (min 4 chars)"></div>
@@ -789,7 +799,7 @@ th,td{padding:8px 10px}
  </div>
 </div>
 <nav class="mnav"><div class="mnav-items">
- <button class="mnav-item active" onclick="goM('dashboard',this)"><i class="fas fa-objects-column"></i>Home</button>
+ <button class="mnav-item active" onclick="goM('dashboard',this)"><i class="fas fa-th-large"></i>Home</button>
  <button class="mnav-item" onclick="goM('orders',this)" style="position:relative"><i class="fas fa-bell"></i>Orders<span class="mbadge" id="mBdg" style="display:none">0</span></button>
  <button class="mnav-item" onclick="goM('menu',this)"><i class="fas fa-utensils"></i>Menu</button>
  <button class="mnav-item" onclick="goM('reporting',this)"><i class="fas fa-chart-pie"></i>Reports</button>
@@ -1477,14 +1487,16 @@ function renderBS(){
 function renderHist(){
  var el=document.getElementById('histEl');
  var fv=(document.getElementById('histFilter')||{}).value||'all';
- var dateV=(document.getElementById('histDate')||{}).value||'';
- var ords=orders.slice().reverse();
+ var fromV=(document.getElementById('histDateFrom')||{}).value||'';
+ var toV=(document.getElementById('histDateTo')||{}).value||'';
+ var ords=orders.slice().sort(function(a,b){return(b.timestamp||0)-(a.timestamp||0)});
  if(fv!=='all')ords=ords.filter(function(o){return(o.status||'pending')===fv});
- if(dateV){var dStr=new Date(dateV).toDateString();ords=ords.filter(function(o){return o.timestamp&&new Date(o.timestamp).toDateString()===dStr})}
- if(!ords.length){el.innerHTML='<div class="empty"><i class="fas fa-inbox"></i><p>No orders</p></div>';return}
+ if(fromV){var fromD=new Date(fromV);fromD.setHours(0,0,0,0);ords=ords.filter(function(o){return o.timestamp&&o.timestamp>=fromD.getTime()})}
+ if(toV){var toD=new Date(toV);toD.setHours(23,59,59,999);ords=ords.filter(function(o){return o.timestamp&&o.timestamp<=toD.getTime()})}
+ if(!ords.length){el.innerHTML='<div class="empty"><i class="fas fa-inbox"></i><p>No orders found</p></div>';return}
  el.innerHTML=ords.map(function(o){
-  var id=gOID(o),st=o.status||'pending';
-  return'<div class="oc"><div class="oc-h"><div class="oc-idg"><span class="oc-id">#'+esc(id)+'</span><span class="sb sb-'+st.replace(/\s/g,'')+'">'+gSL(st)+'</span></div><span class="oc-time">'+fmtDate(o.timestamp)+' '+fmtTime(o.timestamp)+'</span></div><div class="oc-b"><div class="oc-cust"><div class="oc-ci"><i class="fas fa-user"></i>'+esc(o.name||o.customerName||'Customer')+'</div>'+(o.phone||o.customerPhone?'<div class="oc-ci"><i class="fas fa-phone"></i>'+esc(o.phone||o.customerPhone)+'</div>':'')+'</div><div class="oc-tr"><span>Total</span><span>\u20b9'+(o.total||0)+'</span></div></div></div>';
+ var id=gOID(o),st=o.status||'pending';
+ return'<div class="oc"><div class="oc-h"><div class="oc-idg"><span class="oc-id">#'+esc(id)+'</span><span class="sb sb-'+st.replace(/\s/g,'')+'">'+gSL(st)+'</span></div><span class="oc-time">'+fmtDate(o.timestamp)+' '+fmtTime(o.timestamp)+'</span></div><div class="oc-b"><div class="oc-cust"><div class="oc-ci"><i class="fas fa-user"></i>'+esc(o.name||o.customerName||'Customer')+'</div>'+(o.phone||o.customerPhone?'<div class="oc-ci"><i class="fas fa-phone"></i>'+esc(o.phone||o.customerPhone)+'</div>':'')+'</div><div class="oc-tr"><span>Total</span><span>\u20b9'+(o.total||0)+'</span></div></div></div>';
  }).join('');
 }
 
@@ -1717,7 +1729,14 @@ function delAnn(id){if(!confirm('Delete announcement?'))return;anns=anns.filter(
 // ============================================================
 // SETTINGS — FIX #7: Password validation
 // ============================================================
-function loadCfgForm(){document.getElementById('sUpi').value=cfg.upiId||'';document.getElementById('sUpiN').value=cfg.upiName||'';document.getElementById('sPhone').value=cfg.phone||'';document.getElementById('sWa').value=cfg.whatsapp||'';document.getElementById('sDel').value=cfg.deliveryCharge||30;document.getElementById('sFreeAbove').value=cfg.freeAbove||499;document.getElementById('sMinOrder').value=cfg.minOrder||99;document.getElementById('sOpen').value=cfg.openTime||'10:00';document.getElementById('sClose').value=cfg.closeTime||'23:00'}
+function loadCfgForm(){document.getElementById('sUpi').value=cfg.upiId||'';document.getElementById('sUpiN').value=cfg.upiName||'';document.getElementById('sPhone').value=cfg.phone||'';document.getElementById('sWa').value=cfg.whatsapp||'';document.getElementById('sDel').value=cfg.deliveryCharge||30;document.getElementById('sFreeAbove').value=cfg.freeAbove||499;document.getElementById('sMinOrder').value=cfg.minOrder||99;// Load timing slots
+var _tsBox=document.getElementById('timingSlotsBox');
+if(_tsBox&&cfg.timingSlots&&cfg.timingSlots.length){
+  _tsBox.innerHTML='';
+  cfg.timingSlots.forEach(function(sl,i){
+    _tsBox.innerHTML+='<div class="fg-row" data-slot="'+i+'"><div class="fg"><label>Slot '+(i+1)+' Opens</label><input type="time" class="tsOpen" value="'+(sl.open||'10:00')+'"></div><div class="fg"><label>Slot '+(i+1)+' Closes</label><input type="time" class="tsClose" value="'+(sl.close||'23:00')+'"></div>'+(i>0?'<button class="abtn dl" onclick="this.closest(\'[data-slot]\').remove()" style="margin-bottom:16px"><i class="fas fa-trash"></i></button>':'')+'</div>';
+  });
+}document.getElementById('sClose').value=cfg.closeTime||'23:00'}
 var _heroData=document.getElementById('sHeroImgData');if(_heroData)_heroData.value='';
 var _heroPreview=document.getElementById('heroImgPreview');
 var _heroArea=document.getElementById('heroImgArea');
@@ -1737,8 +1756,16 @@ function saveCfg(){
  cfg.deliveryCharge=parseInt(document.getElementById('sDel').value)||30;
  cfg.freeAbove=parseInt(document.getElementById('sFreeAbove').value)||499;
  cfg.minOrder=parseInt(document.getElementById('sMinOrder').value)||99;
- cfg.openTime=document.getElementById('sOpen').value;
- cfg.closeTime=document.getElementById('sClose').value;
+ // Save timing slots
+var _slotEls=document.querySelectorAll('#timingSlotsBox [data-slot]');
+var _slots=[];
+_slotEls.forEach(function(el){
+  var o=el.querySelector('.tsOpen'),c=el.querySelector('.tsClose');
+  if(o&&c)_slots.push({open:o.value,close:c.value});
+});
+cfg.timingSlots=_slots;
+cfg.openTime=_slots.length?_slots[0].open:'10:00';
+cfg.closeTime=_slots.length?_slots[_slots.length-1].close:'23:00';
   var _uploadedHero=document.getElementById('sHeroImgData').value;
  if(_uploadedHero)cfg.heroImage=_uploadedHero;
  var np=document.getElementById('sPass').value;
@@ -1899,6 +1926,17 @@ function toast(msg,type){
  ic.className=type==='error'?'fas fa-circle-exclamation':type==='info'?'fas fa-circle-info':'fas fa-circle-check';
  t.classList.add('show');clearTimeout(t._t);
  t._t=setTimeout(function(){t.classList.remove('show')},3500);
+}
+function addTimeSlot(){
+  var box=document.getElementById('timingSlotsBox');
+  if(!box)return;
+  var count=box.querySelectorAll('[data-slot]').length;
+  if(count>=4){toast('Maximum 4 slots','error');return}
+  var div=document.createElement('div');
+  div.className='fg-row';
+  div.setAttribute('data-slot',count);
+  div.innerHTML='<div class="fg"><label>Slot '+(count+1)+' Opens</label><input type="time" class="tsOpen" value="17:00"></div><div class="fg"><label>Slot '+(count+1)+' Closes</label><input type="time" class="tsClose" value="23:00"></div><button class="abtn dl" onclick="this.closest(\'[data-slot]\').remove()" style="margin-bottom:16px"><i class="fas fa-trash"></i></button>';
+  box.appendChild(div);
 }
 
 // ============================================================
@@ -2134,6 +2172,24 @@ init();
    try{localStorage.setItem("sd_allUsers",JSON.stringify(data))}catch(e){}
   }
  });
+ /* === AUTO-SAVE every 30 seconds === */
+var _autoHash = '';
+function _getHash() {
+  return menu.length + ':' + orders.length + ':' + JSON.stringify(cfg).length + ':' + promos.length;
+}
+setInterval(function() {
+  if (!sessionStorage.getItem('sdAuth')) return;
+  var h = _getHash();
+  if (h !== _autoHash && _autoHash !== '') {
+    LS('menu', menu); LS('cfg', cfg); LS('orders', orders);
+    LS('promos', promos); LS('loy', loy); LS('zones', zones);
+    LS('anns', anns); LS('fb', feedbacks);
+    syncToIndexKeys();
+    fbPushAll();
+    toast('Auto-saved ✅', 'info');
+  }
+  _autoHash = h;
+}, 30000);
  console.log("Admin Firebase FULL SYNC active");
 })();
 </script>
