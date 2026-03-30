@@ -1705,12 +1705,17 @@ try{var rc=localStorage.getItem("sliceDelightReferral");if(!rc){localStorage.set
 
 var h='<div class="wallet-balance"><div class="wallet-balance-label">Available Points</div>';
 h+='<div class="wallet-balance-amount">'+pts+'</div>';
-h+='<div class="wallet-balance-sub">1 point = ₹0.10 · Earn 1 point for every ₹10 spent</div></div>';
+var _wLoy=null;try{_wLoy=JSON.parse(localStorage.getItem("sd_loy"))}catch(e){}
+var _wPV=(_wLoy&&_wLoy.pv)?_wLoy.pv:0.5;
+var _wPPR=(_wLoy&&_wLoy.ppr)?_wLoy.ppr:1;
+var _wRef=(_wLoy&&_wLoy.referral)?_wLoy.referral:100;
+var _wWel=(_wLoy&&_wLoy.welcome)?_wLoy.welcome:50;
+h+='<div class="wallet-balance-sub">1 point = ₹'+_wPV+' · Earn '+_wPPR+' point per ₹1 spent</div></div>';
 
 h+='<button class="wallet-redeem-btn" onclick="APP.redeemPoints()"'+(pts<100?' disabled':'')+' ><i class="fas fa-gift"></i> Redeem '+Math.floor(pts/10)+' Points (₹'+Math.floor(pts/10)+')</button>';
 if(pts<100)h+='<div style="text-align:center;font-size:12px;color:var(--muted2);margin-top:6px">Min 100 points required to redeem</div>';
 
-h+='<div class="referral-card"><h3>🎁 Refer & Earn</h3><p>Share your referral code with friends. Both of you get 50 bonus points!</p>';
+h+='<div class="referral-card"><h3>🎁 Refer & Earn</h3><p>Share your referral code with friends. 'You get '+_wRef+' pts, friend gets '+_wWel+' pts!'</p>';
 h+='<div class="referral-code-box"><span class="referral-code">'+referralCode+'</span><button class="referral-copy" onclick="APP.copyReferral(\''+referralCode+'\')"><i class="fas fa-copy"></i> Copy</button></div>';
 h+='<div class="referral-share"><button class="rf-wa" onclick="APP.shareReferral(\'wa\',\''+referralCode+'\')"><i class="fab fa-whatsapp"></i></button>';
 h+='<button class="rf-tw" onclick="APP.shareReferral(\'tw\',\''+referralCode+'\')"><i class="fab fa-twitter"></i></button>';
@@ -2312,7 +2317,13 @@ var AUTH = (function () {
             saveSession(user);
 
             var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
-            if(pts===0){pts=50;try{localStorage.setItem(PTS_KEY,"50")}catch(e){}}
+            if(pts===0){
+  var _loyConf=null;
+  try{_loyConf=JSON.parse(localStorage.getItem("sd_loy"))}catch(e){}
+  var _wb=(_loyConf&&_loyConf.welcome)?_loyConf.welcome:50;
+  pts=_wb;
+  try{localStorage.setItem(PTS_KEY,String(_wb))}catch(e){}
+}
 
             setTimeout(function(){
                 document.getElementById("authStep2").classList.remove("show");
@@ -2461,7 +2472,7 @@ var AUTH = (function () {
         h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openHistory()"><div class="profile-menu-icon"><i class="fas fa-clock-rotate-left"></i></div><div class="profile-menu-text"><h4>Order History</h4><p>'+uo.length+' orders</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
         h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openWallet()"><div class="profile-menu-icon"><i class="fas fa-wallet"></i></div><div class="profile-menu-text"><h4>My Wallet</h4><p>'+pts+' points</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
         h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openAddrMgr()"><div class="profile-menu-icon"><i class="fas fa-map-marker-alt"></i></div><div class="profile-menu-text"><h4>My Addresses</h4><p>Manage addresses</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View & checkout</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View & checkout</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i>h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openFavorites()"><div class="profile-menu-icon" style="background:rgba(239,68,68,.1)"><i class="fas fa-heart" style="color:var(--red)"></i></div><div class="profile-menu-text"><h4>My Favorites</h4><p>'+Object.keys(favorites).length+' items</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';</div>';
         h+="</div>";
         h+='<button class="profile-logout" onclick="AUTH.logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>';
 
@@ -2596,6 +2607,17 @@ function openItemModal(id){
  h+='<div class="im-meta-pill"><i class="fas fa-star"></i> '+rat.avg+'</div>';
  if(it.cal)h+='<div class="im-meta-pill"><i class="fas fa-fire"></i> '+it.cal+' cal</div></div>';
  h+='<div class="im-desc-full">'+(it.desc||"Delicious item prepared fresh.")+'</div>';
+ // Show reviews from other customers
+var _itemRevs=reviews[id]||[];
+if(_itemRevs.length>0){
+  h+='<div class="im-sec-title" style="margin-top:16px"><i class="fas fa-star"></i> Customer Reviews ('+_itemRevs.length+')</div><div class="im-reviews">';
+  _itemRevs.slice(-5).reverse().forEach(function(rv){
+    h+='<div class="im-rev"><div class="im-rev-head"><span class="im-rev-name">'+escHTML(rv.user||"Customer")+'</span><span class="im-rev-stars">';
+    for(var ss=0;ss<5;ss++)h+=ss<(rv.stars||4)?'★':'☆';
+    h+='</span></div><div class="im-rev-text">'+escHTML(rv.text||"")+'</div></div>';
+  });
+  h+='</div>';
+}
  scrollEl.innerHTML=h;
  var fh='<div class="im-foot-price">\u20b9'+it.price+'</div>';
  if(qty>0){fh+='<div class="im-foot-qty"><button onclick="S.chgModal(\''+id+'\',-1)">-</button><span id="imQty">'+qty+'</span><button onclick="S.chgModal(\''+id+'\',1)">+</button></div>'}
@@ -2896,6 +2918,30 @@ var t1=document.getElementById("otTime1");if(t1&&order.placedAt)t1.textContent=f
 if(status==="accepted"||order.acceptedAt){var s2=document.getElementById("otStep2");if(s2)s2.className="ot-step "+(status==="accepted"?"active":"done");var t2=document.getElementById("otTime2");if(t2&&order.acceptedAt)t2.textContent=formatTime(order.acceptedAt)}
 if(status==="preparing"){document.getElementById("otStep2").className="ot-step done";document.getElementById("otStep3").className="ot-step active"}
 if(status==="out"||status==="outfordelivery"){document.getElementById("otStep2").className="ot-step done";document.getElementById("otStep3").className="ot-step done";document.getElementById("otStep4").className="ot-step active"}
+if(status==="rejected"){
+  // Show rejection message
+  var _sucW2=document.getElementById("sucWaitText");
+  if(_sucW2)_sucW2.textContent="Order has been cancelled";
+  
+  toast("⚠️ Order "+order.id+" has been cancelled. Refund will be processed automatically within 1-2 working days. Usually reflects in your bank account within a few hours.");
+  
+  APP.showNotif("Order Cancelled","Order "+order.id+" cancelled. Refund in 1-2 working days.","order");
+  
+  // Update tracker UI
+  var _rejBox=document.getElementById("otWaitBox");
+  if(_rejBox){
+    _rejBox.style.display="block";
+    _rejBox.innerHTML='<div style="text-align:center"><div style="font-size:24px;margin-bottom:8px">❌</div><div style="font-weight:900;color:var(--red);margin-bottom:6px">Order Cancelled</div><div style="font-size:11px;color:var(--muted);line-height:1.6">Refund will be processed automatically within 1-2 working days (maximum). Usually reflects within a few hours.</div></div>';
+  }
+  
+  if(statusPollTimer){clearInterval(statusPollTimer);statusPollTimer=null}
+  setTimeout(function(){
+    activeOrderId=null;
+    localStorage.removeItem("sliceDelightActiveOrder");
+    document.getElementById("otToggleBtn").classList.remove("show");
+  },10000);
+  return; // Stop further processing
+}
 if(status==="delivered"){for(var ss=2;ss<=5;ss++)document.getElementById("otStep"+ss).className="ot-step done";if(statusPollTimer){clearInterval(statusPollTimer);statusPollTimer=null}
 setTimeout(function(){
 activeOrderId=null;localStorage.removeItem("sliceDelightActiveOrder");document.getElementById("otToggleBtn").classList.remove("show");
@@ -2980,11 +3026,36 @@ if(e.key==="sd_orders")updateTrackerDisplay();
 if(e.key==="sliceDelightMenu"){try{var nm=JSON.parse(e.newValue);if(nm&&nm.length){items=nm.map(function(x){return{id:x.id,name:x.name,price:Number(x.price||0),cat:x.cat,tag:x.badge||x.tag||null,tc:x.bc||x.tc||null,desc:x.desc||"",img:x.img||FB,on:(x.available!==false),prep:x.prep||15,cal:x.cal||250}});render();renderBestsellers()}}catch(ex){}}
 if(e.key==="sliceDelightSession"){try{var ss=JSON.parse(e.newValue);if(ss&&ss.user)AUTH.updateNavUser(ss.user);else AUTH.updateNavUser(null)}catch(ex){}}
 });
+// Show average ratings from feedback
+try{
+  var _allFb=JSON.parse(localStorage.getItem("sd_fb"))||[];
+  if(_allFb.length>0){
+    var _totalR=0;
+    _allFb.forEach(function(f){_totalR+=(f.rating||0)});
+    var _avgR=(_totalR/_allFb.length).toFixed(1);
+    var _rStats=document.querySelectorAll('.hero-stat .val');
+    if(_rStats&&_rStats[1])_rStats[1].textContent=_avgR+'★';
+    var _arNum=document.querySelector('.about-rating .ar-num');
+    if(_arNum)_arNum.textContent=_avgR+' ★';
+    var _arLbl=document.querySelector('.about-rating .ar-lbl');
+    if(_arLbl)_arLbl.textContent=_allFb.length+'+ Ratings';
+  }
+}catch(e){}
 AUTH.init();APP.init();
 }
 init();
-
-return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilter:doFilter,goCheckout:goCheckout,closeCk:closeCk,fillPromo:fillPromo,applyPromo:applyPromo,pickPay:pickPay,cpUPI:cpUPI,placeOrder:placeOrder,closeSuc:closeSuc,toggleTracker:toggleTracker,hideTracker:hideTracker,showTracker:showTracker,openHistory:openHistory,closeHistory:closeHistory,openItemModal:openItemModal,closeItemModal:closeItemModal,addModal:addModal,chgModal:chgModal,toggleFav:toggleFav,toggleTheme:toggleTheme,mobNav:mobNav,showSuggest:showSuggest,hideSuggest:hideSuggest,shareOrder:shareOrder,copyOffer:copyOffer,reorder:reorder,toast:toast,onAuthComplete:onAuthComplete,applyLoyaltyDiscount:applyLoyaltyDiscount,removeLoyaltyDiscount:removeLoyaltyDiscount};
+function openFavorites(){
+  var favItems=items.filter(function(it){return favorites[it.id]});
+  if(!favItems.length){toast("No favorites yet! Tap ❤️ on items to add.");return}
+  var grid=document.getElementById("menuGrid");if(!grid)return;
+  var h='<div style="grid-column:1/-1;margin-bottom:16px;display:flex;align-items:center;gap:10px"><h3 style="font-size:18px;font-weight:900;display:flex;align-items:center;gap:8px"><i class="fas fa-heart" style="color:var(--red)"></i> My Favorites ('+favItems.length+')</h3><button onclick="S.doFilter()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer">Show All</button></div>';
+  for(var i=0;i<favItems.length;i++)h+=cardHTML(favItems[i],i,"fav",false);
+  grid.innerHTML=h;
+  setTimeout(function(){document.querySelectorAll(".card").forEach(function(c){c.classList.add("show")})},10);
+  document.getElementById("menu").scrollIntoView({behavior:"smooth"});
+  document.querySelectorAll(".ftag").forEach(function(x){x.classList.remove("on")});
+}
+return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilter:doFilter,goCheckout:goCheckout,closeCk:closeCk,fillPromo:fillPromo,applyPromo:applyPromo,pickPay:pickPay,cpUPI:cpUPI,placeOrder:placeOrder,closeSuc:closeSuc,toggleTracker:toggleTracker,hideTracker:hideTracker,showTracker:showTracker,openHistory:openHistory,closeHistory:closeHistory,openItemModal:openItemModal,closeItemModal:closeItemModal,addModal:addModal,chgModal:chgModal,toggleFav:toggleFav,toggleTheme:toggleTheme,mobNav:mobNav,showSuggest:showSuggest,hideSuggest:hideSuggest,shareOrder:shareOrder,copyOffer:copyOffer,reorder:reorder,toast:toast,onAuthComplete:onAuthComplete,applyLoyaltyDiscount:applyLoyaltyDiscount,openFavorites:openFavorites,removeLoyaltyDiscount:removeLoyaltyDiscount};
 })();
 </script>
 <script>
@@ -3243,12 +3314,27 @@ return{openCart:openCart,closeCart:closeCart,add:add,chg:chg,setOT:setOT,doFilte
     ov.style.cssText="position:fixed;top:0;left:0;right:0;z-index:800;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;padding:14px 24px;text-align:center;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(239,68,68,.4)";
     ov.innerHTML='<i class="fas fa-store-slash"></i> Restaurant is currently closed. We will be back soon!';
     document.body.appendChild(ov);
+	// Update hero chip to show closed
+var _heroChip = document.querySelector('.hero-chip');
+if (_heroChip) {
+  _heroChip.innerHTML = '<i class="fas fa-store-slash" style="color:#ef4444"></i> Currently Closed <i class="fas fa-clock" style="font-size:11px"></i>';
+  _heroChip.style.borderColor = 'rgba(239,68,68,.3)';
+  _heroChip.style.background = 'rgba(239,68,68,.08)';
+  _heroChip.style.color = '#ef4444';
+}
    }
   }else{
    var ex=document.getElementById("storeClosedOverlay");
    if(ex)ex.parentNode.removeChild(ex);
+   // Restore hero chip when store opens
+var _heroChip2 = document.querySelector('.hero-chip');
+if (_heroChip2) {
+  _heroChip2.innerHTML = '<div class="pulse-dot"></div> Now Accepting Orders <i class="fas fa-arrow-right" style="font-size:11px"></i>';
+  _heroChip2.style.borderColor = '';
+  _heroChip2.style.background = '';
+  _heroChip2.style.color = '';
+}
   }
-
   // Dine-in toggle
   if(!_dineInEnabled){
    var diBtn=document.querySelector('.type-btn[onclick*="dinein"]');
