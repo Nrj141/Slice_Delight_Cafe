@@ -719,7 +719,10 @@ th,td{padding:8px 10px}
     <div class="fg"><label>Delivery Charge (₹)</label><input type="number" id="sDel"></div>
     <div class="fg"><label>Free Delivery Above (₹)</label><input type="number" id="sFreeAbove" placeholder="499"></div>
     <div class="fg"><label>Min Order (₹)</label><input type="number" id="sMinOrder" placeholder="99"></div>
-	<div class="fg"><label>Hero Banner Image URL</label><input type="text" id="sHeroImg" placeholder="https://images.unsplash.com/photo-..." style="font-size:12px"></div>
+	<div class="fg"><label>Hero Banner Image</label>
+<div class="imgup" id="heroImgArea"><input type="file" accept="image/*" onchange="handleHeroImg(this)"><i class="fas fa-cloud-arrow-up"></i><p>Upload hero banner (max 2MB, auto-compressed)</p><img id="heroImgPreview" style="display:none" alt=""></div>
+<input type="hidden" id="sHeroImgData" value="">
+</div>
     <div class="fg" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
      <label style="margin:0;font-size:12px;font-weight:800;color:var(--text3)">DINE-IN ENABLED</label>
      <label class="toggle"><input type="checkbox" id="sDineIn" checked><div class="ttrack"></div><div class="tthumb"></div></label>
@@ -1091,7 +1094,30 @@ function handleImg(inp,pid,did){
  };
  r.readAsDataURL(f);
 }
-
+function handleHeroImg(inp){
+ var f=inp.files[0];if(!f)return;
+ if(f.size>2*1024*1024){toast('Max 2MB','error');return}
+ var r=new FileReader();
+ r.onload=function(e){
+  var img=new Image();
+  img.onload=function(){
+   var canvas=document.createElement('canvas');
+   var maxW=1200,maxH=600,w=img.width,h=img.height;
+   if(w>maxW){h=h*(maxW/w);w=maxW}
+   if(h>maxH){w=w*(maxH/h);h=maxH}
+   canvas.width=w;canvas.height=h;
+   canvas.getContext('2d').drawImage(img,0,0,w,h);
+   var dataUrl=canvas.toDataURL('image/jpeg',0.7);
+   var p=document.getElementById('heroImgPreview');
+   if(p){p.src=dataUrl;p.style.display='block'}
+   document.getElementById('sHeroImgData').value=dataUrl;
+   inp.closest('.imgup').classList.add('has');
+   toast('Hero image loaded! Click Save Settings to apply.','info');
+  };
+  img.src=e.target.result;
+ };
+ r.readAsDataURL(f);
+}
 function catCls(c){return'cb-'+(c||'test')}
 
 function fmtTime(ts){
@@ -1692,7 +1718,16 @@ function delAnn(id){if(!confirm('Delete announcement?'))return;anns=anns.filter(
 // SETTINGS — FIX #7: Password validation
 // ============================================================
 function loadCfgForm(){document.getElementById('sUpi').value=cfg.upiId||'';document.getElementById('sUpiN').value=cfg.upiName||'';document.getElementById('sPhone').value=cfg.phone||'';document.getElementById('sWa').value=cfg.whatsapp||'';document.getElementById('sDel').value=cfg.deliveryCharge||30;document.getElementById('sFreeAbove').value=cfg.freeAbove||499;document.getElementById('sMinOrder').value=cfg.minOrder||99;document.getElementById('sOpen').value=cfg.openTime||'10:00';document.getElementById('sClose').value=cfg.closeTime||'23:00'}
-document.getElementById('sHeroImg').value=cfg.heroImage||'';
+var _heroData=document.getElementById('sHeroImgData');if(_heroData)_heroData.value='';
+var _heroPreview=document.getElementById('heroImgPreview');
+var _heroArea=document.getElementById('heroImgArea');
+if(_heroPreview&&cfg.heroImage){
+ _heroPreview.src=cfg.heroImage;_heroPreview.style.display='block';
+ if(_heroArea)_heroArea.classList.add('has');
+}else if(_heroPreview){
+ _heroPreview.style.display='none';
+ if(_heroArea)_heroArea.classList.remove('has');
+}
 
 function saveCfg(){
  cfg.upiId=document.getElementById('sUpi').value;
@@ -1704,7 +1739,8 @@ function saveCfg(){
  cfg.minOrder=parseInt(document.getElementById('sMinOrder').value)||99;
  cfg.openTime=document.getElementById('sOpen').value;
  cfg.closeTime=document.getElementById('sClose').value;
- cfg.heroImage=document.getElementById('sHeroImg').value.trim();
+  var _uploadedHero=document.getElementById('sHeroImgData').value;
+ if(_uploadedHero)cfg.heroImage=_uploadedHero;
  var np=document.getElementById('sPass').value;
  if(np){
   if(np.length<4){toast('Password must be at least 4 characters','error');return}
@@ -2045,8 +2081,10 @@ init();
   cfg.minOrder=parseInt(document.getElementById("sMinOrder").value)||99;
   cfg.openTime=document.getElementById("sOpen").value;
   cfg.closeTime=document.getElementById("sClose").value;
-  cfg.dineInEnabled=document.getElementById("sDineIn").checked;
-  var np=document.getElementById("sPass").value;
+   cfg.dineInEnabled=document.getElementById("sDineIn").checked;
+ var _heroVal=document.getElementById("sHeroImgData").value;
+ if(_heroVal)cfg.heroImage=_heroVal;
+ var np=document.getElementById("sPass").value;
   if(np){
    if(np.length<4){toast("Password must be at least 4 characters","error");return}
    if(np.length>20){toast("Password too long","error");return}
@@ -2089,6 +2127,13 @@ init();
  };
 
  setTimeout(bootstrap,600);
+  /* ====== Listen to all user data for admin visibility ====== */
+ db.ref("users").on("value",function(snap){
+  var data=snap.val();
+  if(data){
+   try{localStorage.setItem("sd_allUsers",JSON.stringify(data))}catch(e){}
+  }
+ });
  console.log("Admin Firebase FULL SYNC active");
 })();
 </script>
