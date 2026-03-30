@@ -1736,7 +1736,7 @@ if(_tsBox&&cfg.timingSlots&&cfg.timingSlots.length){
   cfg.timingSlots.forEach(function(sl,i){
     _tsBox.innerHTML+='<div class="fg-row" data-slot="'+i+'"><div class="fg"><label>Slot '+(i+1)+' Opens</label><input type="time" class="tsOpen" value="'+(sl.open||'10:00')+'"></div><div class="fg"><label>Slot '+(i+1)+' Closes</label><input type="time" class="tsClose" value="'+(sl.close||'23:00')+'"></div>'+(i>0?'<button class="abtn dl" onclick="this.closest(\'[data-slot]\').remove()" style="margin-bottom:16px"><i class="fas fa-trash"></i></button>':'')+'</div>';
   });
-}document.getElementById('sClose').value=cfg.closeTime||'23:00'}
+}
 var _heroData=document.getElementById('sHeroImgData');if(_heroData)_heroData.value='';
 var _heroPreview=document.getElementById('heroImgPreview');
 var _heroArea=document.getElementById('heroImgArea');
@@ -2117,8 +2117,12 @@ init();
   cfg.deliveryCharge=parseInt(document.getElementById("sDel").value)||30;
   cfg.freeAbove=parseInt(document.getElementById("sFreeAbove").value)||499;
   cfg.minOrder=parseInt(document.getElementById("sMinOrder").value)||99;
-  cfg.openTime=document.getElementById("sOpen").value;
-  cfg.closeTime=document.getElementById("sClose").value;
+  var _fSlots=document.querySelectorAll('#timingSlotsBox [data-slot]');
+ var _fSlotsArr=[];
+ _fSlots.forEach(function(el){var o2=el.querySelector('.tsOpen'),c2=el.querySelector('.tsClose');if(o2&&c2)_fSlotsArr.push({open:o2.value,close:c2.value})});
+ cfg.timingSlots=_fSlotsArr;
+ cfg.openTime=_fSlotsArr.length?_fSlotsArr[0].open:'10:00';
+ cfg.closeTime=_fSlotsArr.length?_fSlotsArr[_fSlotsArr.length-1].close:'23:00';
    cfg.dineInEnabled=document.getElementById("sDineIn").checked;
  var _heroVal=document.getElementById("sHeroImgData").value;
  if(_heroVal)cfg.heroImage=_heroVal;
