@@ -480,7 +480,7 @@ th,td{padding:8px 10px}
   <p class="lsub">Command Center</p>
   <div class="login-err" id="loginErr"><i class="fas fa-shield-halved"></i> Invalid credentials</div>
   <input type="password" id="loginPass" placeholder="PIN" maxlength="6" autofocus>
-  <button onclick="doLogin()"><i class="fas fa-fingerprint" style="margin-right:8px"></i>Authenticate</button>
+  <button onclick="try{doLogin()}catch(e){alert(e.message)}"><i class="fas fa-fingerprint" style="margin-right:8px"></i>Authenticate</button>
  </div>
 </div>
 
@@ -1747,7 +1747,7 @@ if(_heroPreview&&cfg.heroImage){
  _heroPreview.style.display='none';
  if(_heroArea)_heroArea.classList.remove('has');
 }
-
+}
 function saveCfg(){
  cfg.upiId=document.getElementById('sUpi').value;
  cfg.upiName=document.getElementById('sUpiN').value;
