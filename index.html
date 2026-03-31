@@ -1389,9 +1389,9 @@ body{padding-bottom:58px}
 <div class="hero-img-container">
 <div class="hero-img-glow"></div>
 <img class="hero-main-img" alt="Pizza" src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop&q=85">
-<div class="hero-float hf1"><div class="hf-emoji">🔥</div><div class="hf-label">Bestseller</div><div class="hf-val">Farmhouse Pizza</div></div>
-<div class="hero-float hf2"><div class="hf-emoji">⭐</div><div class="hf-label">Zomato</div><div class="hf-val">4.2 ★ (700+)</div></div>
-<div class="hero-float hf3"><div class="hf-emoji">🚚</div><div class="hf-label">Delivery</div><div class="hf-val">Free over ₹500</div></div>
+<div class="hero-float hf1"><div class="hf-emoji">🔥</div><div class="hf-label">Bestseller</div><div class="hf-val" id="heroBestseller">Farmhouse Pizza</div></div>
+<div class="hero-float hf2"><div class="hf-emoji">⭐</div><div class="hf-label" id="heroBanner3Label">Zomato</div><div class="hf-val" id="heroBanner3Val">4.2 ★ (700+)</div></div>
+<div class="hero-float hf3"><div class="hf-emoji">🚚</div><div class="hf-label">Delivery</div><div class="hf-val" id="heroFreeDelivery">Free over ₹500</div></div>
 </div>
 </div>
 </div>
@@ -1399,7 +1399,8 @@ body{padding-bottom:58px}
 
 <!-- ============ PROMO BAR ============ -->
 <div class="promo-bar">
-<span> 🚚 FREE delivery above ₹500 · 🎁 Use promo codes at checkout!</span>
+<span>🚚 · 🎁 FREE delivery above <span id="promoBarFreeAmt">₹500</span> · Use promo codes at checkout!</span>
+
 </div>
 
 <!-- ============ OFFERS CAROUSEL ============ -->
@@ -1721,15 +1722,35 @@ h+='<button class="rf-tw" onclick="APP.shareReferral(\'tw\',\''+referralCode+'\'
 h+='<button class="rf-cp" onclick="APP.copyReferral(\''+referralCode+'\')"><i class="fas fa-link"></i></button></div></div>';
 
 h+='<div class="wallet-card"><div class="wallet-card-title"><i class="fas fa-history"></i> Points History</div>';
-if(userOrders.length){
-userOrders.slice(-10).reverse().forEach(function(o){
-var earned=o.ptsEarned||Math.floor((o.total||0)/10);
-h+='<div class="wallet-txn"><div class="wallet-txn-icon earn"><i class="fas fa-plus"></i></div>';
-h+='<div class="wallet-txn-info"><h4>Order '+o.id+'</h4><p>'+(o.placedAt?new Date(o.placedAt).toLocaleDateString():"")+'</p></div>';
-h+='<div class="wallet-txn-amt plus">+'+earned+'</div></div>';
+// Build complete transaction history (credits + debits)
+var _txns=[];
+userOrders.forEach(function(o){
+ var earned=o.ptsEarned||Math.floor((o.total||0)/10);
+ _txns.push({type:'earn',label:'Order '+o.id,desc:'Points earned',amount:'+'+earned,ts:o.timestamp||0,cls:'plus'});
+ // Check if loyalty points were used (debit)
+ if(o.discount>0&&o.promo===''){
+  _txns.push({type:'redeem',label:'Redeemed on '+o.id,desc:'Loyalty discount used',amount:'-pts',ts:(o.timestamp||0)+1,cls:'minus'});
+ }
 });
+// Add welcome bonus
+if(pts>0&&!userOrders.length){
+ _txns.push({type:'earn',label:'Welcome Bonus',desc:'Sign-up reward',amount:'+'+pts,ts:Date.now(),cls:'plus'});
+}
+// Add rating bonuses
+try{
+ var _ratedKeys=[];for(var _rk in localStorage){if(_rk.indexOf('rated_')===0)_ratedKeys.push(_rk.replace('rated_',''))}
+ _ratedKeys.forEach(function(rid){_txns.push({type:'earn',label:'Rating Bonus',desc:'Rated order '+rid,amount:'+10',ts:0,cls:'plus'})});
+}catch(e){}
+_txns.sort(function(a,b){return(b.ts||0)-(a.ts||0)});
+if(_txns.length){
+ _txns.slice(0,20).forEach(function(tx){
+  var iconCls=tx.type==='earn'?'earn':'redeem';
+  var icon=tx.type==='earn'?'fa-plus':'fa-minus';
+  h+='<div class="wallet-txn"><div class="wallet-txn-icon '+iconCls+'"><i class="fas '+icon+'"></i></div>';
+  h+='<div class="wallet-txn-info"><h4>'+tx.label+'</h4><p>'+tx.desc+'</p></div>';
+  h+='<div class="wallet-txn-amt '+tx.cls+'">'+tx.amount+'</div></div>';
+ });
 }else{h+='<div style="text-align:center;padding:20px;color:var(--muted2);font-size:13px">No transactions yet. Place an order to earn points!</div>'}
-h+='</div>';
 
 content.innerHTML=h;
 screen.classList.add("open");document.body.style.overflow="hidden";
@@ -3166,6 +3187,32 @@ try{
    _oh+='<div class="offer-card '+_ocColors[i%5]+'" onclick="S.copyOffer(\''+p.code.toUpperCase()+'\')"><div class="oc-code">'+p.code.toUpperCase()+'</div><div class="oc-title">'+_title+'</div><div class="oc-desc">'+_desc+'</div><div class="oc-emoji">'+_ocEmojis[i%5]+'</div></div>';
   });
   if(_oh)_offScroll.innerHTML=_oh;
+ }
+}catch(e){}
+// Auto-update bestseller banner
+try{
+ var _bsOrders=JSON.parse(localStorage.getItem("sd_orders"))||[];
+ var _bsCnt={};
+ _bsOrders.forEach(function(o){if(o.status!=="rejected"&&o.items&&Array.isArray(o.items)){o.items.forEach(function(it){var k=it.id||it.name;if(!_bsCnt[k])_bsCnt[k]={name:it.name,count:0};_bsCnt[k].count+=(it.qty||1)})}});
+ var _bsTop=Object.values(_bsCnt).sort(function(a,b){return b.count-a.count})[0];
+ if(_bsTop){var _bsEl=document.getElementById("heroBestseller");if(_bsEl)_bsEl.textContent=_bsTop.name}
+}catch(e){}
+// Update free delivery banner from config
+try{
+ var _cfgDel=JSON.parse(localStorage.getItem("sliceDelightSettings"));
+ if(_cfgDel&&_cfgDel.freeAbove){
+  var _fdEl=document.getElementById("heroFreeDelivery");
+  if(_fdEl)_fdEl.textContent="Free over ₹"+_cfgDel.freeAbove;
+ }
+}catch(e){}
+try{var _pbEl=document.getElementById("promoBarFreeAmt");if(_pbEl&&_cfgDel&&_cfgDel.freeAbove)_pbEl.textContent="₹"+_cfgDel.freeAbove}catch(e){}
+// Custom hero banner from admin
+try{
+ if(_cfgDel&&_cfgDel.heroBannerText){
+  var _hb3L=document.getElementById("heroBanner3Label");
+  var _hb3V=document.getElementById("heroBanner3Val");
+  if(_hb3V)_hb3V.textContent=_cfgDel.heroBannerText;
+  if(_hb3L)_hb3L.textContent="Special";
  }
 }catch(e){}
 AUTH.init();APP.init();
