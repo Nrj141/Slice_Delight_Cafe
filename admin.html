@@ -4,6 +4,8 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script>emailjs.init("UjQvuPsrAoOisDzBL");</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Slice Delight — Command Center</title>
@@ -729,6 +731,10 @@ th,td{padding:8px 10px}
 <div class="imgup" id="heroImgArea"><input type="file" accept="image/*" onchange="handleHeroImg(this)"><i class="fas fa-cloud-arrow-up"></i><p>Upload hero banner (max 2MB, auto-compressed)</p><img id="heroImgPreview" style="display:none" alt=""></div>
 <input type="hidden" id="sHeroImgData" value="">
 </div>
+<div class="fg"><label>Bottom/Footer Banner Image</label>
+<div class="imgup" id="bottomImgArea"><input type="file" accept="image/*" onchange="handleBottomImg(this)"><i class="fas fa-cloud-arrow-up"></i><p>Upload bottom banner (max 2MB)</p><img id="bottomImgPreview" style="display:none" alt=""></div>
+<input type="hidden" id="sBottomImgData" value="">
+</div>
     <div class="fg" style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
      <label style="margin:0;font-size:12px;font-weight:800;color:var(--text3)">DINE-IN ENABLED</label>
      <label class="toggle"><input type="checkbox" id="sDineIn" checked><div class="ttrack"></div><div class="tthumb"></div></label>
@@ -976,7 +982,7 @@ document.getElementById('loginPass').addEventListener('keypress',function(e){if(
 var ss=document.createElement('style');ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}';document.head.appendChild(ss);
 
 function showApp(){
- document.getElementById('loginScreen').classList.add('hidden');
+ document.getElementById('loginScreen').classList.add('hidden'); if("Notification" in window&&Notification.permission==="default"){Notification.requestPermission()}
  document.getElementById('app').style.display='block';
  renderAll();startPoll();startElapsed();startClock();initStore();
  document.addEventListener('click',initAudio,{once:true});
@@ -1123,6 +1129,30 @@ function handleHeroImg(inp){
    document.getElementById('sHeroImgData').value=dataUrl;
    inp.closest('.imgup').classList.add('has');
    toast('Hero image loaded! Click Save Settings to apply.','info');
+  };
+  img.src=e.target.result;
+ };
+ r.readAsDataURL(f);
+}
+function handleBottomImg(inp){
+ var f=inp.files[0];if(!f)return;
+ if(f.size>2*1024*1024){toast('Max 2MB','error');return}
+ var r=new FileReader();
+ r.onload=function(e){
+  var img=new Image();
+  img.onload=function(){
+   var canvas=document.createElement('canvas');
+   var maxW=1200,maxH=400,w=img.width,h=img.height;
+   if(w>maxW){h=h*(maxW/w);w=maxW}
+   if(h>maxH){w=w*(maxH/h);h=maxH}
+   canvas.width=w;canvas.height=h;
+   canvas.getContext('2d').drawImage(img,0,0,w,h);
+   var dataUrl=canvas.toDataURL('image/jpeg',0.7);
+   var p=document.getElementById('bottomImgPreview');
+   if(p){p.src=dataUrl;p.style.display='block'}
+   document.getElementById('sBottomImgData').value=dataUrl;
+   inp.closest('.imgup').classList.add('has');
+   toast('Bottom image loaded! Click Save Settings to apply.','info');
   };
   img.src=e.target.result;
  };
@@ -1278,9 +1308,10 @@ function togAvail(id,a){var i=menu.find(function(x){return x.id===id});if(i){i.a
 function delItem(id){
  if(!confirm('Delete permanently?'))return;
  menu=menu.filter(function(i){return i.id!==id});
- syncToIndexKeys();renderMenu();toast('Deleted','success');
+ LS('menu',menu);
+ syncToIndexKeys();renderMenu();populateCatFilter();populateRptCatFilter();
+ toast('Deleted','success');
 }
-
 function dupItem(id){
  var i=menu.find(function(x){return x.id===id});if(!i)return;
  var n=JSON.parse(JSON.stringify(i));n.id='i_'+Date.now();n.name=i.name+' (Copy)';
@@ -1371,21 +1402,34 @@ function renderLive(){
   if(o.deliveryCharge>0){h+='<div class="oc-sr"><span>Subtotal</span><span>\u20b9'+((o.total||0)-(o.deliveryCharge||0))+'</span></div><div class="oc-sr"><span>Delivery</span><span>\u20b9'+o.deliveryCharge+'</span></div>'}
   h+='<div class="oc-tr"><span>Total</span><span>\u20b9'+(o.total||0)+'</span></div></div>';
   if(o.notes)h+='<div class="oc-note"><i class="fas fa-note-sticky"></i><span>'+esc(o.notes)+'</span></div>';
-  if(o.waitTime&&st!=='pending')h+='<div class="oc-wait"><i class="fas fa-hourglass-half"></i> ETA: '+esc(String(o.waitTime))+' min</div>';
+   if(o.waitTime&&st!=='pending'){
+  if(o.timerEndAt){
+   var _now=Date.now();var _remaining=Math.max(0,Math.ceil((o.timerEndAt-_now)/60000));
+   if(_remaining>0){
+    h+='<div class="oc-wait" style="color:var(--green)"><i class="fas fa-hourglass-half"></i> Prep Timer: <strong>'+_remaining+' min left</strong></div>';
+   }else{
+    var _delayed=Math.abs(Math.floor((_now-o.timerEndAt)/60000));
+    h+='<div class="oc-wait" style="color:var(--red)"><i class="fas fa-exclamation-triangle"></i> DELAYED by <strong>'+_delayed+' min</strong></div>';
+   }
+  }else{
+   h+='<div class="oc-wait"><i class="fas fa-hourglass-half"></i> ETA: '+esc(String(o.waitTime))+' min</div>';
+  }
+ }
   h+='</div>';
   h+='<div class="oc-f"><div class="oc-acts">';
   if(ip){
    h+='<div class="tp"><input type="number" id="wt_'+esc(id)+'" value="20" min="5" max="120"><span>min</span></div>';
    h+='<button class="btn-acc" onclick="acceptO(\''+esc(id)+'\')"><i class="fas fa-check"></i> Accept</button>';
    h+='<button class="btn-rej" onclick="rejectO(\''+esc(id)+'\')"><i class="fas fa-xmark"></i></button>';
-  } else {
-   h+='<select onchange="updSt(\''+esc(id)+'\',this.value)">';
+   } else {
+ h+='<select onchange="updSt(\''+esc(id)+'\',this.value)">';
    [{v:'accepted',l:'Accepted'},{v:'preparing',l:'Preparing'},{v:'outfordelivery',l:'Out for Delivery'},{v:'delivered',l:'Delivered'}].forEach(function(op){
     h+='<option value="'+op.v+'"'+(st===op.v?' selected':'')+'>'+op.l+'</option>';
    });
-   h+='</select>';
-  }
-  h+='</div>';
+    h+='</select>';
+ h+='<button class="btn-rej" onclick="rejectO(\''+esc(id)+'\')"><i class="fas fa-xmark"></i> Reject</button>';
+ }
+ h+='</div>';
   h+='<div class="qk">';
   var phn=o.phone||o.customerPhone||'';
   if(phn){
@@ -1414,9 +1458,11 @@ function buildSP(cs){
 function acceptO(id){
  var r=findO(id);if(!r){toast('Order not found','error');return}
  var w=document.getElementById('wt_'+id);
+ var waitMin=w?(parseInt(w.value)||20):20;
  r.order.status='accepted';
- r.order.waitTime=w?(parseInt(w.value)||20):20;
+ r.order.waitTime=waitMin;
  r.order.acceptedAt=Date.now();
+ r.order.timerEndAt=Date.now()+(waitMin*60*1000);
  LS('orders',orders);
  lastOC=orders.length;lastOrderIds=buildOrderFingerprint(orders);
  stopSound();renderLive();updateBadge();renderDash();
@@ -1424,9 +1470,11 @@ function acceptO(id){
 }
 
 function rejectO(id){
- if(!confirm('Reject #'+id+'?'))return;
+ var reason=prompt('Reject #'+id+'? Enter reason (optional):','');
+ if(reason===null)return; // cancelled
  var r=findO(id);if(!r)return;
  r.order.status='rejected';r.order.rejectedAt=Date.now();
+ r.order.rejectReason=reason||'Order cancelled by restaurant';
  LS('orders',orders);
  lastOC=orders.length;lastOrderIds=buildOrderFingerprint(orders);
  stopSound();renderLive();updateBadge();renderDash();
@@ -1685,10 +1733,17 @@ function renderFB(){
  var elFB=document.getElementById('fbList');
  if(!filtered.length){elFB.innerHTML='<div class="empty"><i class="fas fa-star"></i><p>No reviews</p></div>';return}
  elFB.innerHTML=filtered.sort(function(a,b){return(b.ts||0)-(a.ts||0)}).map(function(f){
-  return'<div class="fb-card"><div class="fb-head"><span class="fb-user">'+esc(f.user)+'</span><span class="fb-stars">'+(('\u2605').repeat(f.rating)+('\u2606').repeat(5-f.rating))+'</span></div><div class="fb-text">'+esc(f.text)+'</div><div class="fb-meta"><span><i class="fas fa-receipt"></i> '+esc(f.orderId)+'</span><span><i class="fas fa-clock"></i> '+elapsed(f.ts)+' ago</span></div>'+(f.reply?'<div class="fb-reply"><strong>Your reply:</strong> '+esc(f.reply)+'</div>':'')+'</div>';
+   var _fbItems=f.items?('<div style="font-size:11px;color:var(--text3);margin-bottom:6px"><i class="fas fa-utensils" style="margin-right:4px"></i>'+esc(f.items)+'</div>'):'';
+ return'<div class="fb-card"><div class="fb-head"><span class="fb-user">'+esc(f.user)+'</span><span class="fb-stars">'+
+(('\u2605').repeat(f.rating)+('\u2606').repeat(5-f.rating))+'</span></div>'+_fbItems+'<div class="fb-text">'+esc(f.text)+'</div><div class="fb-meta"><span><i class="fas fa-receipt"></i> '+esc(f.orderId)+'</span><span><i class="fas fa-clock"></i> '+elapsed(f.ts)+' ago</span>'+(f.email?'<span><i class="fas fa-envelope"></i> '+esc(f.email)+'</span>':'')+'</div>'+(f.reply?'<div class="fb-reply"><strong>Your reply:</strong> '+esc(f.reply)+'</div>':'')+'<div style="margin-top:10px;display:flex;gap:8px"><input type="text" placeholder="Write a reply..." id="reply_'+f.id+'" value="'+(f.reply?esc(f.reply):'')+'" style="flex:1;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:#fff;font-size:12px"><button onclick="replyFB(\''+f.id+'\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:0;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer"><i class="fas fa-reply"></i> Reply</button></div></div>';(('\u2605').repeat(f.rating)+('\u2606').repeat(5-f.rating))+'</span></div><div class="fb-text">'+esc(f.text)+'</div><div class="fb-meta"><span><i class="fas fa-receipt"></i> '+esc(f.orderId)+'</span><span><i class="fas fa-clock"></i> '+elapsed(f.ts)+' ago</span></div>'+(f.reply?'<div class="fb-reply"><strong>Your reply:</strong> '+esc(f.reply)+'</div>':'')+'</div>';
  }).join('');
 }
-
+function replyFB(fid){
+ var inp=document.getElementById('reply_'+fid);if(!inp)return;
+ var reply=inp.value.trim();if(!reply){toast('Enter a reply','error');return}
+ var fb=feedbacks.find(function(f){return f.id===fid});
+ if(fb){fb.reply=reply;LS('fb',feedbacks);renderFB();toast('Reply saved!','success')}
+}
 // ============================================================
 // DELIVERY ZONES
 // ============================================================
@@ -1723,7 +1778,27 @@ function renderAnns(){
 function openAnnModal(){document.getElementById('amId').value='';document.getElementById('amName').value='';document.getElementById('amMsg').value='';document.getElementById('amType').value='info';document.getElementById('amPri').value='normal';document.getElementById('amShow').checked=true;document.getElementById('amTitle').textContent='New Announcement';document.getElementById('annModal').classList.add('open')}
 function closeAnn(){document.getElementById('annModal').classList.remove('open')}
 function editAnn(id){var a=anns.find(function(x){return x.id===id});if(!a)return;document.getElementById('amId').value=a.id;document.getElementById('amName').value=a.title;document.getElementById('amMsg').value=a.msg;document.getElementById('amType').value=a.type||'info';document.getElementById('amPri').value=a.priority||'normal';document.getElementById('amShow').checked=a.show!==false;document.getElementById('amTitle').textContent='Edit Announcement';document.getElementById('annModal').classList.add('open')}
-function saveAnn(){var t=document.getElementById('amName').value.trim(),m=document.getElementById('amMsg').value.trim();if(!t||!m){toast('Fill all fields','error');return}var d={title:t,msg:m,type:document.getElementById('amType').value,priority:document.getElementById('amPri').value,show:document.getElementById('amShow').checked};var eid=document.getElementById('amId').value;if(eid){var a=anns.find(function(x){return x.id===eid});if(a)Object.assign(a,d);toast('Updated!','success')}else{anns.push(Object.assign({id:'a_'+Date.now(),ts:Date.now()},d));toast('Published!','success')}LS('anns',anns);closeAnn();renderAnns()}
+function saveAnn(){var t=document.getElementById('amName').value.trim(),m=document.getElementById('amMsg').value.trim();if(!t||!m){toast('Fill all fields','error');return}var d={title:t,msg:m,type:document.getElementById('amType').value,priority:document.getElementById('amPri').value,show:document.getElementById('amShow').checked};var eid=document.getElementById('amId').value;if(eid){var a=anns.find(function(x){return x.id===eid});if(a)Object.assign(a,d);toast('Updated!','success')}else{
+ anns.push(Object.assign({id:'a_'+Date.now(),ts:Date.now()},d));
+ toast('Published!','success');
+ // Send email to all customers with orders
+ if(d.show){
+  try{
+   var _allUsers=JSON.parse(localStorage.getItem('sd_allUsers'))||{};
+   Object.keys(_allUsers).forEach(function(uk){
+    var uData=_allUsers[uk];
+    if(uData&&uData.profile&&uData.profile.email){
+     emailjs.send("service_xkx9axk","template_oopngop",{
+      user_name:uData.profile.name||"Customer",
+      user_email:uData.profile.email,
+      otp_code:"📢 "+d.title+"\n\n"+d.msg
+     }).catch(function(e){console.log("Ann email err:",e)});
+    }
+   });
+   toast('Announcement emails being sent...','info');
+  }catch(e){console.log("Ann email error:",e)}
+ }
+}LS('anns',anns);closeAnn();renderAnns()}
 function delAnn(id){if(!confirm('Delete announcement?'))return;anns=anns.filter(function(a){return a.id!==id});LS('anns',anns);renderAnns();toast('Deleted','success')}
 
 // ============================================================
@@ -1768,6 +1843,8 @@ cfg.openTime=_slots.length?_slots[0].open:'10:00';
 cfg.closeTime=_slots.length?_slots[_slots.length-1].close:'23:00';
   var _uploadedHero=document.getElementById('sHeroImgData').value;
  if(_uploadedHero)cfg.heroImage=_uploadedHero;
+  var _uploadedBottom=document.getElementById('sBottomImgData').value;
+ if(_uploadedBottom)cfg.bottomImage=_uploadedBottom;
  var np=document.getElementById('sPass').value;
  if(np){
   if(np.length<4){toast('Password must be at least 4 characters','error');return}
@@ -1867,10 +1944,27 @@ function playChime(){
  })}catch(e){}
 }
 
-function startSound(){if(notifI)return;playChime();notifI=setInterval(function(){if(orders.some(function(o){return !o.status||o.status==='pending'}))playChime();else stopSound()},5000);document.getElementById('sbar').classList.add('on')}
+function startSound(){if(notifI)return;
+// Request browser notification permission and show notification
+if("Notification" in window){
+ if(Notification.permission==="granted"){
+  try{var n=new Notification("🔔 New Order!",{body:"A new order is waiting in Slice Delight",icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍕</text></svg>",requireInteraction:true,tag:"sd-order"});
+  n.onclick=function(){window.focus();viewNew();n.close()}}catch(e){}
+ }else if(Notification.permission!=="denied"){
+  Notification.requestPermission().then(function(p){if(p==="granted"){try{new Notification("🔔 New Order!",{body:"New order waiting!",tag:"sd-order"})}catch(e){}}})
+ }
+}
+playChime();notifI=setInterval(function(){if(orders.some(function(o){return !o.status||o.status==='pending'}))playChime();else stopSound()},5000);document.getElementById('sbar').classList.add('on')}
 
-function stopSound(){if(notifI){clearInterval(notifI);notifI=null}document.getElementById('sbar').classList.remove('on');stopFlash();dismissNop()}
-
+function stopSound(){
+ if(notifI){clearInterval(notifI);notifI=null}
+ document.getElementById('sbar').classList.remove('on');
+ stopFlash();dismissNop();
+ // Also stop any playing audio context sounds
+ if(audioCtx){
+  try{audioCtx.close();audioCtx=null}catch(e){}
+ }
+}
 function startFlash(c){if(titleI)return;var o=true;titleI=setInterval(function(){document.title=o?'\ud83d\udd14 ('+c+') NEW ORDER!':origTitle;o=!o},800)}
 function stopFlash(){if(titleI){clearInterval(titleI);titleI=null;document.title=origTitle}}
 function showNop(c){document.getElementById('nopInfo').textContent=c+' new order'+(c>1?'s':'')+' waiting!';document.getElementById('nop').classList.add('on')}
