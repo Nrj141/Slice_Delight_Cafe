@@ -4,6 +4,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>emailjs.init("UjQvuPsrAoOisDzBL");</script>
 <meta charset="UTF-8">
@@ -1468,8 +1469,26 @@ function acceptO(id){
  lastOC=orders.length;lastOrderIds=buildOrderFingerprint(orders);
  stopSound();renderLive();updateBadge();renderDash();
  toast('\u2705 #'+esc(id)+' accepted!','success');
-}
 
+ // Send thank-you email via EmailJS (keep this if you still have EmailJS)
+ try{
+   if(typeof emailjs !== "undefined"){
+     var o = r.order;
+     var email = o.email || '';
+     var name = o.name || o.customerName || 'Customer';
+     if(email && email.indexOf('@') > -1){
+       var items = '';
+       if(o.items && Array.isArray(o.items)){
+         o.items.forEach(function(it){ items += it.name + ' x' + (it.qty||1) + '\n'; });
+       }
+       emailjs.send("service_xkx9axk","template_oopngop",{
+         user_name: name, user_email: email,
+         otp_code: "Your order " + id + " is ACCEPTED! Wait time: " + waitMin + " min.\n\n" + items + "\nTotal: Rs." + (o.total||0)
+       }).catch(function(e){console.log("Email err:",e)});
+     }
+   }
+ }catch(e){}
+}
 function rejectO(id){
  var reason=prompt('Reject #'+id+'? Enter reason (optional):','');
  if(reason===null)return; // cancelled
@@ -1490,8 +1509,29 @@ function updSt(id,ns){
  lastOC=orders.length;lastOrderIds=buildOrderFingerprint(orders);
  renderLive();updateBadge();renderDash();
  toast('#'+esc(id)+' \u2192 '+gSL(ns),'success');
-}
 
+ // Send delivery email via EmailJS
+ if(ns === 'delivered'){
+   try{
+     if(typeof emailjs !== "undefined"){
+       var o = r.order;
+       var email = o.email || '';
+       var name = o.name || o.customerName || 'Customer';
+       if(email && email.indexOf('@') > -1){
+         var items = '';
+         if(o.items && Array.isArray(o.items)){
+           o.items.forEach(function(it){ items += it.name + ' x' + (it.qty||1) + '\n'; });
+         }
+         var pts = o.ptsEarned || Math.floor((o.total||0)/10);
+         emailjs.send("service_xkx9axk","template_oopngop",{
+           user_name: name, user_email: email,
+           otp_code: "Your order " + id + " is DELIVERED! Enjoy!\n\n" + items + "\nTotal: Rs." + (o.total||0) + "\nPoints earned: +" + pts
+         }).catch(function(e){console.log("Email err:",e)});
+       }
+     }
+   }catch(e){}
+ }
+}
 function refreshOrd(){
  orders=readOrdersFromStorage();
  lastOC=orders.length;lastOrderIds=buildOrderFingerprint(orders);
