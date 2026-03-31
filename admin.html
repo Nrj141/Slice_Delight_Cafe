@@ -726,7 +726,7 @@ th,td{padding:8px 10px}
    <div class="card"><div class="card-h"><h3><i class="fas fa-truck" style="color:var(--accent)"></i> Delivery</h3></div><div style="padding:22px">
     <div class="fg"><label>Delivery Charge (₹)</label><input type="number" id="sDel"></div>
     <div class="fg"><label>Free Delivery Above (₹)</label><input type="number" id="sFreeAbove" placeholder="499"></div>
-    <div class="fg"><label>Min Order (₹)</label><input type="number" id="sMinOrder" placeholder="99"></div>
+    <div class="fg"><label>Min Order (₹)</label><input type="number" id="sMinOrder" placeholder="99"></div><div class="fg"><label>Custom Hero Banner Text</label><input type="text" id="sHeroBannerText" placeholder="e.g. New Combo Offer!" value=""></div>
 	<div class="fg"><label>Hero Banner Image</label>
 <div class="imgup" id="heroImgArea"><input type="file" accept="image/*" onchange="handleHeroImg(this)"><i class="fas fa-cloud-arrow-up"></i><p>Upload hero banner (max 2MB, auto-compressed)</p><img id="heroImgPreview" style="display:none" alt=""></div>
 <input type="hidden" id="sHeroImgData" value="">
@@ -958,7 +958,8 @@ function doLogin(){
   return;
  }
  var p=document.getElementById('loginPass').value;
- if(p===cfg.password){
+ function _hashPwd(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return'PWD'+Math.abs(h).toString(36)}
+if(_hashPwd(p)===cfg.password||p===cfg.password){
   loginAttempts=0;
   sessionStorage.setItem('sdAuth','1');
   document.getElementById('loginErr').style.display='none';
@@ -982,7 +983,7 @@ document.getElementById('loginPass').addEventListener('keypress',function(e){if(
 var ss=document.createElement('style');ss.textContent='@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}';document.head.appendChild(ss);
 
 function showApp(){
- document.getElementById('loginScreen').classList.add('hidden'); if("Notification" in window&&Notification.permission==="default"){Notification.requestPermission()}
+ document.getElementById('loginScreen').classList.add('hidden'); if("Notification" in window&&Notification.permission==="default"&&!sessionStorage.getItem('sdNotifAsked')){Notification.requestPermission().then(function(){sessionStorage.setItem('sdNotifAsked','1')}).catch(function(){sessionStorage.setItem('sdNotifAsked','1')})}
  document.getElementById('app').style.display='block';
  renderAll();startPoll();startElapsed();startClock();initStore();
  document.addEventListener('click',initAudio,{once:true});
@@ -1812,6 +1813,7 @@ if(_tsBox&&cfg.timingSlots&&cfg.timingSlots.length){
     _tsBox.innerHTML+='<div class="fg-row" data-slot="'+i+'"><div class="fg"><label>Slot '+(i+1)+' Opens</label><input type="time" class="tsOpen" value="'+(sl.open||'10:00')+'"></div><div class="fg"><label>Slot '+(i+1)+' Closes</label><input type="time" class="tsClose" value="'+(sl.close||'23:00')+'"></div>'+(i>0?'<button class="abtn dl" onclick="this.closest(\'[data-slot]\').remove()" style="margin-bottom:16px"><i class="fas fa-trash"></i></button>':'')+'</div>';
   });
 }
+var _hbt=document.getElementById('sHeroBannerText');if(_hbt)_hbt.value=cfg.heroBannerText||'';
 var _heroData=document.getElementById('sHeroImgData');if(_heroData)_heroData.value='';
 var _heroPreview=document.getElementById('heroImgPreview');
 var _heroArea=document.getElementById('heroImgArea');
@@ -1841,6 +1843,7 @@ _slotEls.forEach(function(el){
 cfg.timingSlots=_slots;
 cfg.openTime=_slots.length?_slots[0].open:'10:00';
 cfg.closeTime=_slots.length?_slots[_slots.length-1].close:'23:00';
+ var _hbtVal=document.getElementById('sHeroBannerText');if(_hbtVal)cfg.heroBannerText=_hbtVal.value.trim();
   var _uploadedHero=document.getElementById('sHeroImgData').value;
  if(_uploadedHero)cfg.heroImage=_uploadedHero;
   var _uploadedBottom=document.getElementById('sBottomImgData').value;
@@ -1849,8 +1852,8 @@ cfg.closeTime=_slots.length?_slots[_slots.length-1].close:'23:00';
  if(np){
   if(np.length<4){toast('Password must be at least 4 characters','error');return}
   if(np.length>20){toast('Password too long','error');return}
-  cfg.password=np;
-  toast('Password updated','success');
+   cfg.password=_hashPwd(np);
+ toast('Password updated','success');
  }
  document.getElementById('sPass').value='';
  cfg.dineInEnabled=document.getElementById('sDineIn').checked;
@@ -2224,8 +2227,8 @@ init();
   if(np){
    if(np.length<4){toast("Password must be at least 4 characters","error");return}
    if(np.length>20){toast("Password too long","error");return}
-   cfg.password=np;
-   toast("Password updated","success");
+    cfg.password=(typeof _hashPwd==="function")?_hashPwd(np):np;
+ toast("Password updated","success");
   }
   document.getElementById("sPass").value="";
   LS("cfg",cfg);syncToIndexKeys();
