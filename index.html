@@ -3120,7 +3120,7 @@ function reorder(orderId){
 function toggleTheme(){document.body.classList.toggle("light");var isL=document.body.classList.contains("light");localStorage.setItem("sliceDelightTheme",isL?"light":"dark");var i=document.getElementById("themeIcon");if(i)i.className=isL?"fas fa-sun":"fas fa-moon";var p=document.getElementById("profileThemeIcon");if(p)p.className=isL?"fas fa-sun":"fas fa-moon";toast(isL?"Light mode ☀️":"Dark mode 🌙")}
 function loadTheme(){if(localStorage.getItem("sliceDelightTheme")==="light"){document.body.classList.add("light");var i=document.getElementById("themeIcon");if(i)i.className="fas fa-sun"}}
 function mobNav(target,btn){document.querySelectorAll(".mn-item").forEach(function(b){b.classList.remove("active")});btn.classList.add("active");if(target==="home")window.scrollTo({top:0,behavior:"smooth"});else if(target==="menu")document.getElementById("menu").scrollIntoView({behavior:"smooth"});else if(target==="cart")openCart();else if(target==="orders")openHistory();else if(target==="account")AUTH.handleUserClick()}
-window.addEventListener("scroll",function(){var nb=document.getElementById("navbar");if(nb)nb.classList.toggle("scrolled",window.scrollY>50)});
+window.addEventListener("scroll",function(){var nb=document.getElementById("navbar");if(nb)nb.classList.toggle("scrolled",window.scrollY>50);try{sessionStorage.setItem("sdScrollPos",window.scrollY.toString())}catch(e){}});
 if(activeOrderId)startStatusPolling();
 function onAuthComplete(){var user=AUTH.getUser();if(user)toast("Welcome, "+user.name+"! 🎉 Start ordering!")}
 
@@ -3216,6 +3216,8 @@ try{
  }
 }catch(e){}
 AUTH.init();APP.init();
+// Restore scroll position after refresh
+try{var _savedScroll=sessionStorage.getItem("sdScrollPos");if(_savedScroll){setTimeout(function(){window.scrollTo(0,parseInt(_savedScroll)||0)},500)}}catch(e){}
 }
 init();
 function openFavorites(){
