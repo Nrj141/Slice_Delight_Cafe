@@ -1,10 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-<script>
-  emailjs.init("UjQvuPsrAoOisDzBL");
-</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Slice Delight — Pizza, Burgers & More | Pune</title>
@@ -1153,6 +1150,7 @@ body{padding-bottom:58px}
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 
@@ -1206,7 +1204,7 @@ body{padding-bottom:58px}
 <span class="auth-brand-name">Slice Delight</span>
 </div>
 <div class="auth-title">Welcome to<br><span style="background:linear-gradient(135deg,var(--accent),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent">Slice Delight</span></div>
-<div class="auth-subtitle">Sign in with your email to order delicious food, track orders &amp; earn loyalty points 🎉</div>
+<div class="auth-subtitle">Enter your phone number to get a verification code via SMS 🎉</div>
 </div>
 <div class="auth-card" id="authCard">
 <div id="authStep1">
@@ -1214,9 +1212,14 @@ body{padding-bottom:58px}
 <label class="auth-name-label">Your Name</label>
 <input type="text" class="auth-name-input" id="authNameInput" placeholder="Enter your full name" autocomplete="name">
 </div>
-<div class="auth-phone-wrap">
-<label class="auth-phone-label">Email Address</label>
+<div class="auth-phone-wrap" id="authEmailWrap" style="display:none">
+<label class="auth-phone-label">Email Address (Optional)</label>
 <div class="auth-phone-row" id="authEmailRow">
+<div class="auth-country-code" style="border-right:1px solid var(--border)"><i class="fas fa-envelope" style="font-size:18px;color:var(--accent)"></i></div>
+<input type="email" class="auth-phone-input" id="authEmailInput" placeholder="your@email.com (optional)" autocomplete="email" style="letter-spacing:0;font-size:15px;font-weight:600">
+<div class="auth-phone-check" id="authEmailCheck"></div>
+</div>
+</div>
 <div class="auth-country-code" style="border-right:1px solid var(--border)"><i class="fas fa-envelope" style="font-size:18px;color:var(--accent)"></i></div>
 <input type="email" class="auth-phone-input" id="authEmailInput" placeholder="your@email.com" autocomplete="email" style="letter-spacing:0;font-size:15px;font-weight:600">
 <div class="auth-phone-check" id="authEmailCheck"></div>
@@ -1235,15 +1238,16 @@ body{padding-bottom:58px}
 <label class="auth-phone-label">Referral Code (Optional)</label>
 <input type="text" class="auth-name-input" id="authReferralInput" placeholder="Enter referral code if you have one" style="text-transform:uppercase;letter-spacing:2px;font-weight:800">
 </div>
+<div id="recaptchaContainer"></div>
 <button class="auth-send-btn" id="authSendBtn" onclick="AUTH.sendOTP()">
-<span class="btn-text"><i class="fas fa-paper-plane"></i> Send OTP</span>
+<span class="btn-text"><i class="fas fa-sms"></i> Send SMS OTP</span>
 <div class="btn-loader"></div>
 </button>
 </div>
 <div class="auth-otp-section" id="authStep2">
 <div class="auth-otp-info">
-<div class="auth-otp-info-icon"><i class="fas fa-envelope"></i></div>
-<div class="auth-otp-info-text">OTP sent to <strong id="authOtpPhone">email@example.com</strong></div>
+<div class="auth-otp-info-icon"><i class="fas fa-sms"></i></div>
+<div class="auth-otp-info-text">OTP sent via SMS to <strong id="authOtpPhone">+91 XXXXX XXXXX</strong></div>
 <button class="auth-otp-info-edit" onclick="AUTH.editPhone()"><i class="fas fa-pen"></i> Edit</button>
 </div>
 <div class="auth-otp-label">Enter 6-digit verification code</div>
@@ -1373,7 +1377,7 @@ body{padding-bottom:58px}
 <i class="fas fa-arrow-right" style="font-size:11px"></i>
 </div>
 <h1>Every Slice<br>Is A <em>Delight</em></h1>
-<p class="hero-desc">Hand-crafted 10 inch ″ pizzas, loaded burgers, grilled sandwiches, creamy pasta &amp; more — freshly made at Manjri Budruk, Pune.</p>
+<p class="hero-desc">Hand-crafted 9″ pizzas, loaded burgers, grilled sandwiches, creamy pasta &amp; more — freshly made at Manjri Budruk, Pune.</p>
 <div class="hero-buttons">
 <a href="#menu" class="btn-hero"><i class="fas fa-utensils"></i> Explore Menu</a>
 <a href="#about" class="btn-hero-o"><i class="fas fa-play-circle"></i> Our Story</a>
@@ -2027,13 +2031,18 @@ var AUTH = (function () {
         messagingSenderId: "875133857410",
         appId: "1:875133857410:web:5c6d8374476c50f2194e9b"
     };
+
     if (typeof firebase !== "undefined" && !firebase.apps.length) {
         firebase.initializeApp(FIREBASE_CONFIG);
     }
-    var db;
-    try { db = firebase.database(); } catch (e) { console.error("Firebase DB error:", e); }
 
-    var generatedOTP = null;
+    var db, auth;
+    try { db = firebase.database(); } catch (e) { console.error("DB err:", e); }
+    try { auth = firebase.auth(); } catch (e) { console.error("Auth err:", e); }
+
+    var confirmationResult = null;
+    var recaptchaVerifier = null;
+    var recaptchaWidgetId = null;
     var otpTimer = null;
     var otpSeconds = 60;
     var authPhone = "";
@@ -2041,6 +2050,7 @@ var AUTH = (function () {
     var authName = "";
     var isVerified = false;
     var sessionToken = null;
+
     var SESSION_KEY = "sliceDelightSession";
     var USER_KEY = "sliceDelightUser";
     var PTS_KEY = "sliceDelightPts";
@@ -2054,510 +2064,653 @@ var AUTH = (function () {
         "94":"BSNL","95":"Airtel","96":"Jio","97":"Airtel",
         "98":"Airtel","99":"Airtel"
     };
-    function detectCarrier(p) { if (!p||p.length<2) return ""; return CARRIERS[p.substring(0,2)]||""; }
+
+    function detectCarrier(p) { if (!p || p.length < 2) return ""; return CARRIERS[p.substring(0, 2)] || ""; }
     function getCarrierIcon(c) {
-        if(c==="Jio")return "fas fa-signal";if(c==="Airtel")return "fas fa-wifi";
-        if(c==="Vi"||c==="Idea")return "fas fa-tower-broadcast";
-        if(c==="BSNL"||c==="MTNL")return "fas fa-satellite-dish";
+        if (c === "Jio") return "fas fa-signal";
+        if (c === "Airtel") return "fas fa-wifi";
+        if (c === "Vi" || c === "Idea") return "fas fa-tower-broadcast";
+        if (c === "BSNL" || c === "MTNL") return "fas fa-satellite-dish";
         return "fas fa-mobile-screen";
     }
-
     function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
-    function isValidIndianMobile(p) { if(!p||p.length!==10)return false; var f=p.charAt(0); return f>="6"&&f<="9"; }
-    function formatPhone(p) { if(!p||p.length!==10)return p; return p.substring(0,5)+" "+p.substring(5); }
-     function generateOTP() { return String(Math.floor(100000+Math.random()*900000)); }
- function hashOTP(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return'H'+Math.abs(h).toString(36)}
-    function sanitizeEmailKey(email) { return email.replace(/[.#$\/\[\]@]/g,"_"); }
+    function isValidIndianMobile(p) {
+        if (!p || p.length !== 10) return false;
+        var f = p.charAt(0);
+        return f >= "6" && f <= "9";
+    }
+    function formatPhone(p) {
+        if (!p || p.length !== 10) return p;
+        return p.substring(0, 5) + " " + p.substring(5);
+    }
+    function sanitizeKey(s) { return s.replace(/[.#$\/\[\]@]/g, "_"); }
 
     function haptic(t) {
-        if(!navigator.vibrate)return;
-        if(t==="light")navigator.vibrate(10);
-        else if(t==="medium")navigator.vibrate(25);
-        else if(t==="error")navigator.vibrate([100,50,100,50,100]);
-        else if(t==="success")navigator.vibrate([50,100,50]);
+        if (!navigator.vibrate) return;
+        if (t === "light") navigator.vibrate(10);
+        else if (t === "medium") navigator.vibrate(25);
+        else if (t === "error") navigator.vibrate([100, 50, 100, 50, 100]);
+        else if (t === "success") navigator.vibrate([50, 100, 50]);
     }
+
     function fireConfetti() {
-        var colors=["#FF6B35","#F5A623","#22c55e","#3b82f6","#a855f7","#ef4444"];
-        for(var i=0;i<40;i++){
-            var el=document.createElement("div");el.className="confetti-piece";
-            el.style.left=Math.random()*100+"vw";
-            el.style.background=colors[Math.floor(Math.random()*colors.length)];
-            el.style.animationDuration=(2+Math.random()*2)+"s";
-            el.style.animationDelay=Math.random()*0.5+"s";
-            el.style.borderRadius=["50%","0","2px"][Math.floor(Math.random()*3)];
-            el.style.width=(6+Math.random()*8)+"px";
-            el.style.height=(6+Math.random()*8)+"px";
+        var colors = ["#FF6B35", "#F5A623", "#22c55e", "#3b82f6", "#a855f7", "#ef4444"];
+        for (var i = 0; i < 40; i++) {
+            var el = document.createElement("div");
+            el.className = "confetti-piece";
+            el.style.left = Math.random() * 100 + "vw";
+            el.style.background = colors[Math.floor(Math.random() * colors.length)];
+            el.style.animationDuration = (2 + Math.random() * 2) + "s";
+            el.style.animationDelay = Math.random() * 0.5 + "s";
+            el.style.borderRadius = ["50%", "0", "2px"][Math.floor(Math.random() * 3)];
+            el.style.width = (6 + Math.random() * 8) + "px";
+            el.style.height = (6 + Math.random() * 8) + "px";
             document.body.appendChild(el);
-            setTimeout(function(e){if(e.parentNode)e.parentNode.removeChild(e)},3500,el);
+            setTimeout(function (e) { if (e.parentNode) e.parentNode.removeChild(e); }, 3500, el);
         }
     }
 
     function saveSession(user) {
-        var session={user:user,token:"SD_"+Date.now()+"_"+Math.random().toString(36).substr(2,9),
-            createdAt:Date.now(),expiresAt:Date.now()+30*24*60*60*1000};
-        try{localStorage.setItem(SESSION_KEY,JSON.stringify(session));
-            localStorage.setItem(USER_KEY,JSON.stringify(user))}catch(e){}
-        sessionToken=session.token;
+        var session = {
+            user: user,
+            token: "SD_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9),
+            createdAt: Date.now(),
+            expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000
+        };
+        try {
+            localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+            localStorage.setItem(USER_KEY, JSON.stringify(user));
+        } catch (e) { }
+        sessionToken = session.token;
     }
+
     function getSession() {
-        try{var s=JSON.parse(localStorage.getItem(SESSION_KEY));
-            if(s&&s.expiresAt>Date.now()){sessionToken=s.token;return s}
-            localStorage.removeItem(SESSION_KEY)}catch(e){}
+        try {
+            var s = JSON.parse(localStorage.getItem(SESSION_KEY));
+            if (s && s.expiresAt > Date.now()) { sessionToken = s.token; return s; }
+            localStorage.removeItem(SESSION_KEY);
+        } catch (e) { }
         return null;
     }
+
     function clearSession() {
-        try{localStorage.removeItem(SESSION_KEY);localStorage.removeItem(USER_KEY)}catch(e){}
-        sessionToken=null;isVerified=false;
-    }
-    function getUser() { try{return JSON.parse(localStorage.getItem(USER_KEY))}catch(e){return null} }
-    function isLoggedIn() { return getSession()!==null; }
-
-    function initInputs() {
-        var emailInput=document.getElementById("authEmailInput");
-        if(emailInput){
-            emailInput.addEventListener("input",function(){
-                var val=this.value.trim();
-                var checkEl=document.getElementById("authEmailCheck");
-                var rowEl=document.getElementById("authEmailRow");
-                if(!rowEl||!checkEl)return;
-                rowEl.classList.remove("error","success");
-                checkEl.className="auth-phone-check";checkEl.innerHTML="";
-                if(val.length>3&&val.indexOf("@")>-1){
-                    if(isValidEmail(val)){
-                        rowEl.classList.add("success");
-                        checkEl.className="auth-phone-check valid";
-                        checkEl.innerHTML='<i class="fas fa-check"></i>';haptic("light");
-                    }else{
-                        rowEl.classList.add("error");
-                        checkEl.className="auth-phone-check invalid";
-                        checkEl.innerHTML='<i class="fas fa-times"></i>';
-                    }
-                }
-            });
-        }
-        var phoneInput=document.getElementById("authPhoneInput");
-        if(phoneInput){
-            phoneInput.addEventListener("input",function(){
-                var val=this.value.replace(/\D/g,"");
-                if(val.length>10)val=val.substring(0,10);this.value=val;
-                var checkEl=document.getElementById("authPhoneCheck");
-                var carrierEl=document.getElementById("authCarrier");
-                var rowEl=document.getElementById("authPhoneRow");
-                if(rowEl)rowEl.classList.remove("error","success");
-                if(checkEl){checkEl.className="auth-phone-check";checkEl.innerHTML="";}
-                if(carrierEl)carrierEl.innerHTML="";
-                if(val.length>=2){var c=detectCarrier(val);
-                    if(c&&carrierEl)carrierEl.innerHTML='<i class="'+getCarrierIcon(c)+'"></i> '+c+" Network";}
-                if(val.length===10){
-                    if(isValidIndianMobile(val)){
-                        if(rowEl)rowEl.classList.add("success");
-                        if(checkEl){checkEl.className="auth-phone-check valid";checkEl.innerHTML='<i class="fas fa-check"></i>';}
-                    }else{
-                        if(rowEl)rowEl.classList.add("error");
-                        if(checkEl){checkEl.className="auth-phone-check invalid";checkEl.innerHTML='<i class="fas fa-times"></i>';}
-                    }
-                }
-            });
-        }
-        var nameInput=document.getElementById("authNameInput");
-        if(nameInput)setTimeout(function(){nameInput.focus()},500);
+        try {
+            localStorage.removeItem(SESSION_KEY);
+            localStorage.removeItem(USER_KEY);
+        } catch (e) { }
+        sessionToken = null;
+        isVerified = false;
+        try { if (auth) auth.signOut(); } catch (e) { }
     }
 
+    function getUser() {
+        try { return JSON.parse(localStorage.getItem(USER_KEY)); } catch (e) { return null; }
+    }
+    function isLoggedIn() { return getSession() !== null; }
+
+    // ============================================================
+    // reCAPTCHA SETUP (Required by Firebase Phone Auth)
+    // ============================================================
+    function setupRecaptcha() {
+        if (recaptchaVerifier) {
+            try { recaptchaVerifier.clear(); } catch(e) {}
+            recaptchaVerifier = null;
+        }
+
+        var container = document.getElementById("recaptchaContainer");
+        if (!container) return;
+        container.innerHTML = '<div id="recaptchaWidget"></div>';
+
+        recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptchaWidget', {
+            'size': 'invisible',
+            'callback': function (response) {
+                console.log("reCAPTCHA solved");
+            },
+            'expired-callback': function () {
+                console.log("reCAPTCHA expired");
+                if (typeof S !== "undefined") S.toast("reCAPTCHA expired. Please try again.");
+                setupRecaptcha();
+            }
+        });
+
+        recaptchaVerifier.render().then(function (widgetId) {
+            recaptchaWidgetId = widgetId;
+            console.log("reCAPTCHA rendered, widget ID:", widgetId);
+        }).catch(function(err){
+            console.error("reCAPTCHA render error:", err);
+        });
+    }
+
+    // ============================================================
+    // SEND OTP via Firebase Phone Auth (SMS)
+    // ============================================================
+    function sendOTP() {
+        var nameInput = document.getElementById("authNameInput");
+        var phoneInput = document.getElementById("authPhoneInput");
+        var emailInput = document.getElementById("authEmailInput");
+        var sendBtn = document.getElementById("authSendBtn");
+        var phoneRow = document.getElementById("authPhoneRow");
+
+        authName = nameInput ? nameInput.value.trim() : "";
+        authPhone = phoneInput ? phoneInput.value.trim() : "";
+        authEmail = emailInput ? emailInput.value.trim() : "";
+
+        // Validate name
+        if (!authName || authName.length < 2) {
+            if (typeof S !== "undefined") S.toast("Please enter your name");
+            if (nameInput) nameInput.focus();
+            return;
+        }
+
+        // Validate phone (REQUIRED for SMS OTP)
+        if (!isValidIndianMobile(authPhone)) {
+            if (phoneRow) { phoneRow.classList.add("error"); }
+            haptic("error");
+            if (typeof S !== "undefined") S.toast("Enter a valid 10-digit mobile number");
+            return;
+        }
+
+        if (!auth) {
+            if (typeof S !== "undefined") S.toast("Connection error. Please refresh.");
+            return;
+        }
+
+        // Show loading
+        if (sendBtn) { sendBtn.classList.add("loading"); sendBtn.disabled = true; }
+
+        // Setup reCAPTCHA if not ready
+        if (!recaptchaVerifier) {
+            setupRecaptcha();
+            // Small delay for reCAPTCHA to render
+            setTimeout(function() { doSendOTP(sendBtn); }, 1000);
+        } else {
+            doSendOTP(sendBtn);
+        }
+    }
+
+    function doSendOTP(sendBtn) {
+        var phoneNumber = "+91" + authPhone;
+
+        auth.signInWithPhoneNumber(phoneNumber, recaptchaVerifier)
+            .then(function (result) {
+                confirmationResult = result;
+                console.log("SMS OTP sent to:", phoneNumber);
+
+                if (sendBtn) { sendBtn.classList.remove("loading"); sendBtn.disabled = false; }
+
+                if (typeof S !== "undefined") {
+                    S.toast("OTP sent to +91 " + formatPhone(authPhone) + " via SMS!");
+                }
+
+                // Save user profile to Firebase RTDB
+                if (db) {
+                    var userKey = "phone_" + authPhone;
+                    db.ref("users/" + userKey + "/profile").update({
+                        name: authName,
+                        phone: authPhone,
+                        email: authEmail || "",
+                        updatedAt: Date.now()
+                    });
+                }
+
+                // Switch to OTP input step
+                document.getElementById("authStep1").style.display = "none";
+                document.getElementById("authStep2").classList.add("show");
+                document.getElementById("authOtpPhone").textContent = "+91 " + formatPhone(authPhone);
+
+                startOTPTimer();
+                clearOTPInputs();
+
+                var fi = document.querySelector("#otpInputs .otp-input[data-idx='0']");
+                if (fi) setTimeout(function () { fi.focus(); }, 200);
+
+                haptic("medium");
+            })
+            .catch(function (error) {
+                console.error("SMS OTP error:", error);
+                if (sendBtn) { sendBtn.classList.remove("loading"); sendBtn.disabled = false; }
+
+                var msg = "Failed to send OTP.";
+                if (error.code === "auth/invalid-phone-number") msg = "Invalid phone number format.";
+                else if (error.code === "auth/too-many-requests") msg = "Too many attempts. Please wait and try again.";
+                else if (error.code === "auth/captcha-check-failed") msg = "reCAPTCHA verification failed. Please refresh.";
+                else if (error.code === "auth/quota-exceeded") msg = "SMS quota exceeded. Try again later.";
+
+                if (typeof S !== "undefined") S.toast(msg);
+                haptic("error");
+
+                // Reset reCAPTCHA for retry
+                setupRecaptcha();
+            });
+    }
+
+    // ============================================================
+    // VERIFY OTP (Firebase verifies the SMS code)
+    // ============================================================
+    function verifyOTP() {
+        var entered = getEnteredOTP();
+        var btn = document.getElementById("authVerifyBtn");
+        var inputs = document.querySelectorAll("#otpInputs .otp-input");
+
+        if (entered.length < 6) return;
+
+        if (!confirmationResult) {
+            if (typeof S !== "undefined") S.toast("Please request OTP first.");
+            return;
+        }
+
+        if (btn) { btn.classList.add("loading"); btn.disabled = true; }
+
+        confirmationResult.confirm(entered)
+            .then(function (result) {
+                // SUCCESS — Firebase has verified the phone number!
+                var firebaseUser = result.user;
+                console.log("Phone verified! UID:", firebaseUser.uid);
+
+                if (btn) { btn.classList.remove("loading"); btn.disabled = false; }
+
+                isVerified = true;
+                haptic("success");
+
+                inputs.forEach(function (inp) {
+                    inp.classList.remove("error");
+                    inp.classList.add("success");
+                });
+
+                var user = {
+                    name: authName,
+                    phone: authPhone,
+                    email: authEmail || "",
+                    verified: true,
+                    uid: firebaseUser.uid
+                };
+
+                saveSession(user);
+
+                // Save to Firebase RTDB
+                if (db) {
+                    var userKey = "phone_" + authPhone;
+                    db.ref("users/" + userKey + "/profile").set({
+                        name: authName,
+                        phone: authPhone,
+                        email: authEmail || "",
+                        verified: true,
+                        uid: firebaseUser.uid,
+                        lastLogin: Date.now()
+                    });
+                }
+
+                // Handle loyalty points
+                var pts = 0;
+                try { pts = parseInt(localStorage.getItem(PTS_KEY)) || 0; } catch (e) { }
+
+                if (pts === 0) {
+                    var loyConf = null;
+                    try { loyConf = JSON.parse(localStorage.getItem("sd_loy")); } catch (e) { }
+                    var wb = (loyConf && loyConf.welcome) ? loyConf.welcome : 50;
+                    pts = wb;
+
+                    // Check referral code
+                    var refInput = document.getElementById("authReferralInput");
+                    if (refInput && refInput.value.trim()) {
+                        var refCode = refInput.value.trim().toUpperCase();
+                        var ownRef = "";
+                        try { ownRef = localStorage.getItem("sliceDelightReferral") || ""; } catch (e) { }
+                        var refBonus = (loyConf && loyConf.referral) ? loyConf.referral : 100;
+
+                        if (refCode !== ownRef && refCode.length >= 4) {
+                            pts += refBonus;
+                            if (db) {
+                                db.ref("referralUsages/" + refCode + "/" + Date.now()).set({
+                                    by: authPhone,
+                                    bonus: refBonus
+                                });
+                            }
+                        }
+                    }
+
+                    try { localStorage.setItem(PTS_KEY, String(pts)); } catch (e) { }
+                }
+
+                // Show success step
+                setTimeout(function () {
+                    document.getElementById("authStep2").classList.remove("show");
+                    document.getElementById("authStep3").classList.add("show");
+                    document.getElementById("authWelcomeName").textContent = "Welcome, " + authName + "!";
+                    document.getElementById("authPtsDisplay").textContent = pts;
+
+                    fireConfetti();
+                    updateNavUser(user);
+                    APP.showNotif("Welcome!", "Hey " + authName + "! Phone verified successfully.", "order");
+                }, 500);
+            })
+            .catch(function (error) {
+                console.error("OTP verify error:", error);
+                if (btn) { btn.classList.remove("loading"); btn.disabled = false; }
+                haptic("error");
+
+                inputs.forEach(function (inp) { inp.classList.add("error"); });
+
+                var msg = "Invalid OTP. Please try again.";
+                if (error.code === "auth/invalid-verification-code") msg = "Wrong OTP code. Please check and try again.";
+                else if (error.code === "auth/code-expired") msg = "OTP expired. Please request a new one.";
+
+                if (typeof S !== "undefined") S.toast(msg);
+
+                setTimeout(function () {
+                    clearOTPInputs();
+                    var fi = document.querySelector("#otpInputs .otp-input[data-idx='0']");
+                    if (fi) fi.focus();
+                }, 1000);
+            });
+    }
+
+    // ============================================================
+    // RESEND OTP
+    // ============================================================
+    function resendOTP() {
+        if (!authPhone || !isValidIndianMobile(authPhone)) {
+            if (typeof S !== "undefined") S.toast("Phone number missing.");
+            return;
+        }
+
+        haptic("medium");
+        clearOTPInputs();
+
+        // Reset reCAPTCHA and resend
+        setupRecaptcha();
+        setTimeout(function () {
+            var phoneNumber = "+91" + authPhone;
+            auth.signInWithPhoneNumber(phoneNumber, recaptchaVerifier)
+                .then(function (result) {
+                    confirmationResult = result;
+                    startOTPTimer();
+                    if (typeof S !== "undefined") {
+                        S.toast("New OTP sent to +91 " + formatPhone(authPhone) + "!");
+                    }
+                })
+                .catch(function (error) {
+                    console.error("Resend error:", error);
+                    if (typeof S !== "undefined") S.toast("Could not resend. Try again in a moment.");
+                });
+        }, 1000);
+    }
+
+    // ============================================================
+    // OTP INPUT HELPERS
+    // ============================================================
     function initOTPInputs() {
-        var inputs=document.querySelectorAll("#otpInputs .otp-input");
-        inputs.forEach(function(inp,idx){
-            inp.addEventListener("input",function(){
-                var val=this.value.replace(/\D/g,"");this.value=val;
-                if(val){this.classList.add("filled");haptic("light");if(idx<inputs.length-1)inputs[idx+1].focus();}
-                else this.classList.remove("filled");
+        var inputs = document.querySelectorAll("#otpInputs .otp-input");
+        inputs.forEach(function (inp, idx) {
+            inp.addEventListener("input", function () {
+                var val = this.value.replace(/\D/g, ""); this.value = val;
+                if (val) {
+                    this.classList.add("filled");
+                    haptic("light");
+                    if (idx < inputs.length - 1) inputs[idx + 1].focus();
+                } else {
+                    this.classList.remove("filled");
+                }
                 checkOTPComplete();
             });
-            inp.addEventListener("keydown",function(e){
-                if(e.key==="Backspace"&&!this.value&&idx>0){inputs[idx-1].focus();inputs[idx-1].value="";inputs[idx-1].classList.remove("filled");}
-                if(e.key==="ArrowLeft"&&idx>0)inputs[idx-1].focus();
-                if(e.key==="ArrowRight"&&idx<inputs.length-1)inputs[idx+1].focus();
+            inp.addEventListener("keydown", function (e) {
+                if (e.key === "Backspace" && !this.value && idx > 0) {
+                    inputs[idx - 1].focus();
+                    inputs[idx - 1].value = "";
+                    inputs[idx - 1].classList.remove("filled");
+                }
+                if (e.key === "ArrowLeft" && idx > 0) inputs[idx - 1].focus();
+                if (e.key === "ArrowRight" && idx < inputs.length - 1) inputs[idx + 1].focus();
             });
-            inp.addEventListener("paste",function(e){
+            inp.addEventListener("paste", function (e) {
                 e.preventDefault();
-                var paste=(e.clipboardData||window.clipboardData).getData("text").replace(/\D/g,"");
-                for(var i=0;i<Math.min(paste.length,6);i++){inputs[i].value=paste.charAt(i);inputs[i].classList.add("filled");}
-                if(paste.length>=6)inputs[5].focus();checkOTPComplete();
+                var paste = (e.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
+                for (var i = 0; i < Math.min(paste.length, 6); i++) {
+                    inputs[i].value = paste.charAt(i);
+                    inputs[i].classList.add("filled");
+                }
+                if (paste.length >= 6) inputs[5].focus();
+                checkOTPComplete();
             });
-            inp.addEventListener("focus",function(){this.select()});
+            inp.addEventListener("focus", function () { this.select(); });
         });
     }
+
     function checkOTPComplete() {
-        var otp=getEnteredOTP();var btn=document.getElementById("authVerifyBtn");
-        if(btn)btn.disabled=otp.length<6;
-        if(otp.length===6)setTimeout(function(){verifyOTP()},300);
+        var otp = getEnteredOTP();
+        var btn = document.getElementById("authVerifyBtn");
+        if (btn) btn.disabled = otp.length < 6;
+        if (otp.length === 6) setTimeout(function () { verifyOTP(); }, 300);
     }
+
     function getEnteredOTP() {
-        var inputs=document.querySelectorAll("#otpInputs .otp-input");
-        var otp="";inputs.forEach(function(inp){otp+=inp.value});return otp;
+        var inputs = document.querySelectorAll("#otpInputs .otp-input");
+        var otp = ""; inputs.forEach(function (inp) { otp += inp.value; }); return otp;
     }
+
     function clearOTPInputs() {
-        document.querySelectorAll("#otpInputs .otp-input").forEach(function(inp){
-            inp.value="";inp.classList.remove("filled","error","success");
+        document.querySelectorAll("#otpInputs .otp-input").forEach(function (inp) {
+            inp.value = "";
+            inp.classList.remove("filled", "error", "success");
         });
     }
+
     function startOTPTimer() {
-        otpSeconds=60;
-        var timerEl=document.getElementById("otpTimer");
-        var countEl=document.getElementById("otpCountdown");
-        var resendBtn=document.getElementById("otpResendBtn");
-        if(timerEl)timerEl.style.display="inline";
-        if(resendBtn)resendBtn.classList.remove("show");
-        if(otpTimer)clearInterval(otpTimer);
-        otpTimer=setInterval(function(){
-            otpSeconds--;if(countEl)countEl.textContent=otpSeconds;
-            if(otpSeconds<=0){clearInterval(otpTimer);otpTimer=null;
-                if(timerEl)timerEl.style.display="none";
-                if(resendBtn)resendBtn.classList.add("show");}
-        },1000);
-    }
+        otpSeconds = 60;
+        var timerEl = document.getElementById("otpTimer");
+        var countEl = document.getElementById("otpCountdown");
+        var resendBtn = document.getElementById("otpResendBtn");
 
-    /* ══════════════════════════════════════
-       SEND OTP — Email-based via Firebase RTDB
-       ══════════════════════════════════════ */
-     var _lastOTPTime=0;
- var _otpSendCount=0;
- function sendOTP() {
- var _now=Date.now();
- if(_now-_lastOTPTime<30000&&_otpSendCount>0){if(typeof S!=="undefined")S.toast("Please wait 30 seconds before requesting another OTP");return}
- if(_otpSendCount>=5){if(typeof S!=="undefined")S.toast("Too many OTP requests. Please try again later.");return}
- _lastOTPTime=_now;_otpSendCount++;
- var nameInput = document.getElementById("authNameInput");
-    var emailInput = document.getElementById("authEmailInput");
-    var phoneInput = document.getElementById("authPhoneInput");
-    var sendBtn = document.getElementById("authSendBtn");
-    var emailRow = document.getElementById("authEmailRow");
+        if (timerEl) timerEl.style.display = "inline";
+        if (resendBtn) resendBtn.classList.remove("show");
 
-    authName = nameInput ? nameInput.value.trim() : "";
-    authEmail = emailInput ? emailInput.value.trim() : "";
-    authPhone = phoneInput ? phoneInput.value.trim() : "";
-
-    // Validate name
-    if (!authName || authName.length < 2) {
-        if (typeof S !== "undefined") S.toast("Please enter your name");
-        if (nameInput) nameInput.focus();
-        return;
-    }
-
-    // Validate email
-    if (!isValidEmail(authEmail)) {
-        if (emailRow) emailRow.classList.add("error");
-        haptic("error");
-        if (typeof S !== "undefined") S.toast("Enter a valid email address");
-        return;
-    }
-
-    // Validate phone (optional)
-    if (authPhone && authPhone.length > 0 && !isValidIndianMobile(authPhone)) {
-        var phoneRow = document.getElementById("authPhoneRow");
-        if (phoneRow) phoneRow.classList.add("error");
-        haptic("error");
-        if (typeof S !== "undefined") S.toast("Enter valid 10-digit mobile or leave empty");
-        return;
-    }
-
-    if (!db) {
-        if (typeof S !== "undefined") S.toast("Connection error. Please refresh.");
-        return;
-    }
-
-    // Show loading
-    if (sendBtn) {
-        sendBtn.classList.add("loading");
-        sendBtn.disabled = true;
-    }
-
-    // Generate OTP
-    var otp = generateOTP();
-    generatedOTP = otp;
-    var emailKey = sanitizeEmailKey(authEmail);
-
-    // Store OTP in Firebase for verification
-     var otpData = {
- codeHash: hashOTP(otp),
- email: authEmail,
- name: authName,
- expiresAt: Date.now() + 5 * 60 * 1000,
- createdAt: Date.now()
- };
-
-    // Save to Firebase first
-    db.ref("emailOtps/" + emailKey).set(otpData)
-        .then(function () {
-            // Now send real email via EmailJS
-            var templateParams = {
-                otp_code: otp,
-                user_name: authName,
-                user_email: authEmail
-            };
-
-            return emailjs.send(
-                "service_xkx9axk",
-                "template_oopngop",
-                templateParams
-            );
-        })
-        .then(function (response) {
-            console.log("Email sent successfully:", response.status);
-
-            if (sendBtn) {
-                sendBtn.classList.remove("loading");
-                sendBtn.disabled = false;
+        if (otpTimer) clearInterval(otpTimer);
+        otpTimer = setInterval(function () {
+            otpSeconds--;
+            if (countEl) countEl.textContent = otpSeconds;
+            if (otpSeconds <= 0) {
+                clearInterval(otpTimer); otpTimer = null;
+                if (timerEl) timerEl.style.display = "none";
+                if (resendBtn) resendBtn.classList.add("show");
             }
-
-            if (typeof S !== "undefined") {
-                S.toast("OTP sent to " + authEmail + "! Check your inbox.");
-            }
-
-            // Switch to OTP input step
-            document.getElementById("authStep1").style.display = "none";
-            document.getElementById("authStep2").classList.add("show");
-            document.getElementById("authOtpPhone").textContent = authEmail;
-
-            startOTPTimer();
-            clearOTPInputs();
-
-            var fi = document.querySelector("#otpInputs .otp-input[data-idx='0']");
-            if (fi) setTimeout(function () { fi.focus(); }, 200);
-
-            haptic("medium");
-        })
-        .catch(function (error) {
-            console.error("OTP send error:", error);
-
-            if (sendBtn) {
-                sendBtn.classList.remove("loading");
-                sendBtn.disabled = false;
-            }
-
-            if (typeof S !== "undefined") {
-                S.toast("Failed to send OTP. Please try again.");
-            }
-        });
-}
-    /* ══════════════════════════════════════
-       VERIFY OTP — Checks against Firebase RTDB
-       ══════════════════════════════════════ */
-    function verifyOTP() {
-        var entered=getEnteredOTP();
-        var btn=document.getElementById("authVerifyBtn");
-        var inputs=document.querySelectorAll("#otpInputs .otp-input");
-        if(entered.length<6)return;
-        if(!db){if(typeof S!=="undefined")S.toast("Connection error. Please refresh.");return;}
-        if(btn){btn.classList.add("loading");btn.disabled=true;}
-
-        var emailKey=sanitizeEmailKey(authEmail);
-
-        db.ref("emailOtps/"+emailKey).once("value")
-        .then(function(snap){
-            var data=snap.val();
-            if(!data){throw{message:"OTP not found. Please resend."};}
-            if(Date.now()>data.expiresAt){throw{message:"OTP expired. Please resend."};}
-             if(data.codeHash!==hashOTP(entered)){throw{message:"Incorrect OTP. Please try again."};}
-
-            // SUCCESS — OTP matches!
-            db.ref("emailOtps/"+emailKey).remove();
-
-            if(btn){btn.classList.remove("loading");btn.disabled=false;}
-            isVerified=true;haptic("success");
-            inputs.forEach(function(inp){inp.classList.remove("error");inp.classList.add("success")});
-
-            var user={name:authName,email:authEmail,phone:authPhone,verified:true};
-            saveSession(user);
-
-            var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
-                         if(pts===0){
-             var _loyConf=null;
-             try{_loyConf=JSON.parse(localStorage.getItem("sd_loy"))}catch(e){}
-             var _wb=(_loyConf&&_loyConf.welcome)?_loyConf.welcome:50;
-             pts=_wb;
-             // Check for referral code
-             var _refInput=document.getElementById("authReferralInput");
-             if(_refInput&&_refInput.value.trim()){
-               var _refCode=_refInput.value.trim().toUpperCase();
-               var _refBonus=(_loyConf&&_loyConf.referral)?_loyConf.referral:100;
-               // Validate referral - must not be own code
-               var _ownRef="";try{_ownRef=localStorage.getItem("sliceDelightReferral")||""}catch(e){}
-               if(_refCode!==_ownRef&&_refCode.length>=4){
-                 pts+=_refBonus;
-                 // Record referral usage
-                 if(db){db.ref("referralUsages/"+_refCode+"/"+Date.now()).set({by:authEmail,bonus:_refBonus})}
-               }
-             }
-             try{localStorage.setItem(PTS_KEY,String(pts))}catch(e){}
-}
-            setTimeout(function(){
-                document.getElementById("authStep2").classList.remove("show");
-                document.getElementById("authStep3").classList.add("show");
-                document.getElementById("authWelcomeName").textContent="Welcome, "+authName+"!";
-                document.getElementById("authPtsDisplay").textContent=pts;
-                fireConfetti();updateNavUser(user);
-                APP.showNotif("Welcome!","Hey "+authName+"!","order");
-            },500);
-        })
-        .catch(function(error){
-            if(btn){btn.classList.remove("loading");btn.disabled=false;}
-            haptic("error");
-            inputs.forEach(function(inp){inp.classList.add("error")});
-            var msg=error.message||"Incorrect OTP.";
-            if(typeof S!=="undefined")S.toast(msg);
-            setTimeout(function(){clearOTPInputs();
-                var fi=document.querySelector("#otpInputs .otp-input[data-idx='0']");
-                if(fi)fi.focus();},1000);
-        });
+        }, 1000);
     }
 
-    function resendOTP() {
-    if (!authEmail) {
-        if (typeof S !== "undefined") S.toast("Email missing.");
-        return;
-    }
-    if (!db) {
-        if (typeof S !== "undefined") S.toast("Connection error.");
-        return;
-    }
-
-    haptic("medium");
-    clearOTPInputs();
-
-    var otp = generateOTP();
-    generatedOTP = otp;
-    var emailKey = sanitizeEmailKey(authEmail);
-
-     var otpData = {
- codeHash: hashOTP(otp),
- email: authEmail,
- name: authName,
- expiresAt: Date.now() + 5 * 60 * 1000,
- createdAt: Date.now()
- };
-
-    db.ref("emailOtps/" + emailKey).set(otpData)
-        .then(function () {
-            var templateParams = {
-                otp_code: otp,
-                user_name: authName,
-                user_email: authEmail
-            };
-
-            return emailjs.send(
-                "service_xkx9axk",
-                "template_oopngop",
-                templateParams
-            );
-        })
-        .then(function (response) {
-            console.log("Resend email sent:", response.status);
-            startOTPTimer();
-
-            if (typeof S !== "undefined") {
-                S.toast("New OTP sent to " + authEmail + "!");
-            }
-        })
-        .catch(function (error) {
-            console.error("Resend error:", error);
-            if (typeof S !== "undefined") {
-                S.toast("Could not resend OTP. Try again.");
-            }
-        });
-}
+    // ============================================================
+    // UI FUNCTIONS
+    // ============================================================
     function editPhone() {
-        document.getElementById("authStep1").style.display="block";
+        document.getElementById("authStep1").style.display = "block";
         document.getElementById("authStep2").classList.remove("show");
-        if(otpTimer){clearInterval(otpTimer);otpTimer=null;}
-        generatedOTP=null;
-        var e=document.getElementById("authEmailInput");
-        if(e)setTimeout(function(){e.focus();e.select()},100);
+        if (otpTimer) { clearInterval(otpTimer); otpTimer = null; }
+        confirmationResult = null;
+
+        var p = document.getElementById("authPhoneInput");
+        if (p) setTimeout(function () { p.focus(); p.select(); }, 100);
     }
+
     function complete() {
-        var s=document.getElementById("authScreen");if(s)s.classList.remove("open");
-        document.body.style.overflow="";
-        if(typeof S!=="undefined"&&S.onAuthComplete)S.onAuthComplete();
+        var s = document.getElementById("authScreen");
+        if (s) s.classList.remove("open");
+        document.body.style.overflow = "";
+        if (typeof S !== "undefined" && S.onAuthComplete) S.onAuthComplete();
     }
+
     function skip() {
-        var s=document.getElementById("authScreen");if(s)s.classList.remove("open");
-        document.body.style.overflow="";
-        try{localStorage.setItem("sliceDelightAuthSkipped","true")}catch(e){}
+        var s = document.getElementById("authScreen");
+        if (s) s.classList.remove("open");
+        document.body.style.overflow = "";
+        try { localStorage.setItem("sliceDelightAuthSkipped", "true"); } catch (e) { }
     }
+
     function show() {
-        var s=document.getElementById("authScreen");
-        if(s){s.classList.add("open","animating");setTimeout(function(){s.classList.remove("animating")},300);}
-        document.body.style.overflow="hidden";
-        var s1=document.getElementById("authStep1"),s2=document.getElementById("authStep2"),s3=document.getElementById("authStep3");
-        if(s1)s1.style.display="block";if(s2)s2.classList.remove("show");if(s3)s3.classList.remove("show");
-        generatedOTP=null;
-        var user=getUser();
-        if(user){
-            var ni=document.getElementById("authNameInput");
-            var ei=document.getElementById("authEmailInput");
-            var pi=document.getElementById("authPhoneInput");
-            if(ni&&user.name)ni.value=user.name;
-            if(ei&&user.email){ei.value=user.email;ei.dispatchEvent(new Event("input"));}
-            if(pi&&user.phone){pi.value=user.phone;pi.dispatchEvent(new Event("input"));}
+        var s = document.getElementById("authScreen");
+        if (s) {
+            s.classList.add("open", "animating");
+            setTimeout(function () { s.classList.remove("animating"); }, 300);
         }
-        initInputs();initOTPInputs();
+        document.body.style.overflow = "hidden";
+
+        var s1 = document.getElementById("authStep1");
+        var s2 = document.getElementById("authStep2");
+        var s3 = document.getElementById("authStep3");
+        if (s1) s1.style.display = "block";
+        if (s2) s2.classList.remove("show");
+        if (s3) s3.classList.remove("show");
+
+        confirmationResult = null;
+
+        var user = getUser();
+        if (user) {
+            var ni = document.getElementById("authNameInput");
+            var ei = document.getElementById("authEmailInput");
+            var pi = document.getElementById("authPhoneInput");
+            if (ni && user.name) ni.value = user.name;
+            if (ei && user.email) ei.value = user.email;
+            if (pi && user.phone) { pi.value = user.phone; pi.dispatchEvent(new Event("input")); }
+        }
+
+        initInputs();
+        initOTPInputs();
+
+        // Setup reCAPTCHA
+        setTimeout(setupRecaptcha, 500);
+    }
+
+    function initInputs() {
+        var phoneInput = document.getElementById("authPhoneInput");
+        if (phoneInput) {
+            phoneInput.addEventListener("input", function () {
+                var val = this.value.replace(/\D/g, "");
+                if (val.length > 10) val = val.substring(0, 10); this.value = val;
+                var checkEl = document.getElementById("authPhoneCheck");
+                var carrierEl = document.getElementById("authCarrier");
+                var rowEl = document.getElementById("authPhoneRow");
+                if (rowEl) rowEl.classList.remove("error", "success");
+                if (checkEl) { checkEl.className = "auth-phone-check"; checkEl.innerHTML = ""; }
+                if (carrierEl) carrierEl.innerHTML = "";
+                if (val.length >= 2) {
+                    var c = detectCarrier(val);
+                    if (c && carrierEl) carrierEl.innerHTML = '<i class="' + getCarrierIcon(c) + '"></i> ' + c + " Network";
+                }
+                if (val.length === 10) {
+                    if (isValidIndianMobile(val)) {
+                        if (rowEl) rowEl.classList.add("success");
+                        if (checkEl) { checkEl.className = "auth-phone-check valid"; checkEl.innerHTML = '<i class="fas fa-check"></i>'; }
+                        haptic("light");
+                    } else {
+                        if (rowEl) rowEl.classList.add("error");
+                        if (checkEl) { checkEl.className = "auth-phone-check invalid"; checkEl.innerHTML = '<i class="fas fa-times"></i>'; }
+                    }
+                }
+            });
+        }
+
+        // Show email field toggle
+        var emailWrap = document.getElementById("authEmailWrap");
+        if (emailWrap) {
+            // Add a small link to show email field if user wants
+            var toggleLink = document.createElement("button");
+            toggleLink.textContent = "+ Add email (optional)";
+            toggleLink.style.cssText = "background:none;color:var(--accent);font-size:12px;font-weight:700;padding:4px 0;margin-top:4px;cursor:pointer;border:0";
+            toggleLink.onclick = function () {
+                emailWrap.style.display = "block";
+                this.style.display = "none";
+            };
+            // Only add if not already there
+            if (!document.getElementById("emailToggleLink")) {
+                toggleLink.id = "emailToggleLink";
+                emailWrap.parentNode.insertBefore(toggleLink, emailWrap);
+            }
+        }
+
+        var nameInput = document.getElementById("authNameInput");
+        if (nameInput) setTimeout(function () { nameInput.focus(); }, 500);
     }
 
     function updateNavUser(user) {
-        var area=document.getElementById("navUserArea");if(!area)return;
-        if(user&&user.name){
-            var initials=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
-            area.innerHTML='<div class="nav-user-pill" onclick="AUTH.handleUserClick()"><div class="nup-avatar">'+initials+'</div><span class="nup-name">'+user.name.split(" ")[0]+"</span></div>";
-        }else{
-            area.innerHTML='<button class="nav-icon-btn" onclick="AUTH.handleUserClick()" title="Account"><i class="fas fa-user"></i></button>';
+        var area = document.getElementById("navUserArea"); if (!area) return;
+        if (user && user.name) {
+            var initials = user.name.split(" ").map(function (w) { return w.charAt(0).toUpperCase(); }).join("").substring(0, 2);
+            area.innerHTML = '<div class="nav-user-pill" onclick="AUTH.handleUserClick()"><div class="nup-avatar">' + initials + '</div><span class="nup-name">' + user.name.split(" ")[0] + '</span></div>';
+        } else {
+            area.innerHTML = '<button class="nav-icon-btn" onclick="AUTH.handleUserClick()" title="Account"><i class="fas fa-user"></i></button>';
         }
     }
-    function handleUserClick(){if(isLoggedIn())openProfile();else show();}
+
+    function handleUserClick() { if (isLoggedIn()) openProfile(); else show(); }
 
     function openProfile() {
-        var user=getUser();if(!user){show();return;}
-        var screen=document.getElementById("profileScreen"),content=document.getElementById("profileContent");
-        if(!screen||!content)return;
-        var pts=0;try{pts=parseInt(localStorage.getItem(PTS_KEY))||0}catch(e){}
-        var orders=[];try{orders=JSON.parse(localStorage.getItem("sd_orders"))||[]}catch(e){}
-        var uo=orders.filter(function(o){return(o.email&&o.email===user.email)||(o.phone&&o.phone===user.phone)});
-        var spent=0;uo.forEach(function(o){spent+=o.total||0});
-        var ini=user.name.split(" ").map(function(w){return w.charAt(0).toUpperCase()}).join("").substring(0,2);
+        var user = getUser(); if (!user) { show(); return; }
+        var screen = document.getElementById("profileScreen");
+        var content = document.getElementById("profileContent");
+        if (!screen || !content) return;
 
-        var h='<div class="profile-avatar-section"><div class="profile-avatar">'+ini+"</div>";
-        h+='<div class="profile-user-name">'+user.name+"</div>";
-        if(user.email)h+='<div class="profile-user-phone"><i class="fas fa-envelope"></i> '+user.email+' <span class="verified"><i class="fas fa-check-circle"></i> Verified</span></div>';
-        if(user.phone)h+='<div class="profile-user-phone" style="margin-top:4px"><i class="fas fa-phone"></i> +91 '+formatPhone(user.phone)+'</div>';
-        h+='</div>';
+        var pts = 0; try { pts = parseInt(localStorage.getItem(PTS_KEY)) || 0; } catch (e) { }
+        var orders = []; try { orders = JSON.parse(localStorage.getItem("sd_orders")) || []; } catch (e) { }
+        var uo = orders.filter(function (o) {
+            return (o.phone && o.phone === user.phone) || (o.email && user.email && o.email === user.email);
+        });
+        var spent = 0; uo.forEach(function (o) { spent += o.total || 0; });
+        var ini = user.name.split(" ").map(function (w) { return w.charAt(0).toUpperCase(); }).join("").substring(0, 2);
 
-        h+='<div class="profile-stats"><div class="profile-stat"><div class="ps-val">'+uo.length+'</div><div class="ps-lbl">Orders</div></div>';
-        h+='<div class="profile-stat"><div class="ps-val">'+pts+'</div><div class="ps-lbl">Points</div></div>';
-        h+='<div class="profile-stat"><div class="ps-val">\u20b9'+spent+'</div><div class="ps-lbl">Spent</div></div></div>';
+        var h = '<div class="profile-avatar-section"><div class="profile-avatar">' + ini + '</div>';
+        h += '<div class="profile-user-name">' + user.name + '</div>';
+        h += '<div class="profile-user-phone"><i class="fas fa-phone"></i> +91 ' + formatPhone(user.phone) + ' <span class="verified"><i class="fas fa-check-circle"></i> Verified</span></div>';
+        if (user.email) h += '<div class="profile-user-phone" style="margin-top:4px"><i class="fas fa-envelope"></i> ' + user.email + '</div>';
+        h += '</div>';
 
-        h+='<div class="profile-card"><div class="profile-card-title"><i class="fas fa-grid-2"></i> Quick Actions</div>';
-        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openHistory()"><div class="profile-menu-icon"><i class="fas fa-clock-rotate-left"></i></div><div class="profile-menu-text"><h4>Order History</h4><p>'+uo.length+' orders</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openWallet()"><div class="profile-menu-icon"><i class="fas fa-wallet"></i></div><div class="profile-menu-text"><h4>My Wallet</h4><p>'+pts+' points</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openAddrMgr()"><div class="profile-menu-icon"><i class="fas fa-map-marker-alt"></i></div><div class="profile-menu-text"><h4>My Addresses</h4><p>Manage addresses</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-        h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View cart</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-h+='<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openFavorites()"><div class="profile-menu-icon" style="background:rgba(239,68,68,.1)"><i class="fas fa-heart" style="color:var(--red)"></i></div><div class="profile-menu-text"><h4>My Favorites</h4><p>Saved items</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
-        h+="</div>";
-        h+='<button class="profile-logout" onclick="AUTH.logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>';
+        h += '<div class="profile-stats"><div class="profile-stat"><div class="ps-val">' + uo.length + '</div><div class="ps-lbl">Orders</div></div>';
+        h += '<div class="profile-stat"><div class="ps-val">' + pts + '</div><div class="ps-lbl">Points</div></div>';
+        h += '<div class="profile-stat"><div class="ps-val">\u20b9' + spent + '</div><div class="ps-lbl">Spent</div></div></div>';
 
-        content.innerHTML=h;
-        screen.classList.add("open");document.body.style.overflow="hidden";
-        var pti=document.getElementById("profileThemeIcon");
-        if(pti)pti.className=document.body.classList.contains("light")?"fas fa-sun":"fas fa-moon";
+        h += '<div class="profile-card"><div class="profile-card-title"><i class="fas fa-grid-2"></i> Quick Actions</div>';
+        h += '<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openHistory()"><div class="profile-menu-icon"><i class="fas fa-clock-rotate-left"></i></div><div class="profile-menu-text"><h4>Order History</h4><p>' + uo.length + ' orders</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h += '<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openWallet()"><div class="profile-menu-icon"><i class="fas fa-wallet"></i></div><div class="profile-menu-text"><h4>My Wallet</h4><p>' + pts + ' points</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h += '<div class="profile-menu-item" onclick="AUTH.closeProfile();APP.openAddrMgr()"><div class="profile-menu-icon"><i class="fas fa-map-marker-alt"></i></div><div class="profile-menu-text"><h4>My Addresses</h4><p>Manage addresses</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h += '<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openCart()"><div class="profile-menu-icon"><i class="fas fa-bag-shopping"></i></div><div class="profile-menu-text"><h4>My Cart</h4><p>View cart</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h += '<div class="profile-menu-item" onclick="AUTH.closeProfile();S.openFavorites()"><div class="profile-menu-icon" style="background:rgba(239,68,68,.1)"><i class="fas fa-heart" style="color:var(--red)"></i></div><div class="profile-menu-text"><h4>My Favorites</h4><p>Saved items</p></div><i class="fas fa-chevron-right profile-menu-arrow"></i></div>';
+        h += '</div>';
+        h += '<button class="profile-logout" onclick="AUTH.logout()"><i class="fas fa-sign-out-alt"></i> Sign Out</button>';
+
+        content.innerHTML = h;
+        screen.classList.add("open"); document.body.style.overflow = "hidden";
+        var pti = document.getElementById("profileThemeIcon");
+        if (pti) pti.className = document.body.classList.contains("light") ? "fas fa-sun" : "fas fa-moon";
     }
-    function closeProfile(){var s=document.getElementById("profileScreen");if(s)s.classList.remove("open");document.body.style.overflow="";}
-    function logout(){clearSession();updateNavUser(null);closeProfile();if(typeof S!=="undefined")S.toast("Signed out");}
-    function requireAuth(cb){if(isLoggedIn()){if(cb)cb();return true;}show();return false;}
-    function init(){var s=getSession();if(s&&s.user){isVerified=true;updateNavUser(s.user);}}
 
-    return{
-        init:init,show:show,sendOTP:sendOTP,verifyOTP:verifyOTP,
-        resendOTP:resendOTP,editPhone:editPhone,complete:complete,
-        skip:skip,handleUserClick:handleUserClick,openProfile:openProfile,
-        closeProfile:closeProfile,logout:logout,isLoggedIn:isLoggedIn,
-        getUser:getUser,requireAuth:requireAuth,updateNavUser:updateNavUser
+    function closeProfile() {
+        var s = document.getElementById("profileScreen");
+        if (s) s.classList.remove("open");
+        document.body.style.overflow = "";
+    }
+
+    function logout() {
+        clearSession();
+        updateNavUser(null);
+        closeProfile();
+        if (typeof S !== "undefined") S.toast("Signed out");
+    }
+
+    function requireAuth(cb) {
+        if (isLoggedIn()) { if (cb) cb(); return true; }
+        show(); return false;
+    }
+
+    function init() {
+        var s = getSession();
+        if (s && s.user) {
+            isVerified = true;
+            updateNavUser(s.user);
+        }
+    }
+
+    return {
+        init: init, show: show, sendOTP: sendOTP, verifyOTP: verifyOTP,
+        resendOTP: resendOTP, editPhone: editPhone, complete: complete,
+        skip: skip, handleUserClick: handleUserClick, openProfile: openProfile,
+        closeProfile: closeProfile, logout: logout, isLoggedIn: isLoggedIn,
+        getUser: getUser, requireAuth: requireAuth, updateNavUser: updateNavUser
     };
 })();
 </script>
@@ -3667,6 +3820,120 @@ if (_heroChip2) {
  }
 
  console.log("Index Firebase FULL SYNC active — all data synced to Firebase");
+})();
+</script>
+<script>
+(function(){
+  var db;
+  try { db = firebase.database(); } catch(e) { return; }
+
+  // ===== PASTE YOUR VAPID KEY HERE =====
+  var VAPID_KEY = 'BFHNA3HP3Rx2qIDmnNL-eEtFUv31NSN_aatfsOBOS8RJ1PBsvcU3eR957-fAQycBmCajkOnMrSAZo6fcv2DIxrA';
+  // =====================================
+
+  var messaging = null;
+  try {
+    if(firebase.messaging && firebase.messaging.isSupported()){
+      messaging = firebase.messaging();
+    }
+  } catch(e) {}
+
+  function getUserKey(){
+    try{
+      var s = JSON.parse(localStorage.getItem("sliceDelightSession"));
+      if(s && s.user && s.user.phone) return "phone_" + s.user.phone;
+      if(s && s.user && s.user.email) return s.user.email.replace(/[.#$\/\[\]@]/g,"_");
+    }catch(e){}
+    return null;
+  }
+
+  function initFCM(){
+    if(!messaging || !('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    .then(function(reg){
+      return messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+    })
+    .then(function(token){
+      if(token){
+        var uk = getUserKey();
+        if(uk && db){
+          db.ref("users/" + uk + "/fcmToken").set(token);
+          db.ref("fcmTokens/" + token.substring(0,20)).set({ token: token, userKey: uk, ts: Date.now() });
+        }
+      }
+    })
+    .catch(function(err){ console.warn("FCM err:", err); });
+  }
+
+  if(messaging){
+    messaging.onMessage(function(payload){
+      var t = (payload.notification ? payload.notification.title : '') || 'Slice Delight';
+      var b = (payload.notification ? payload.notification.body : '') || '';
+      if(typeof APP !== "undefined") APP.showNotif(t, b, "order");
+      if(Notification.permission === "granted") new Notification(t, { body: b, tag: 'sd-' + Date.now() });
+    });
+  }
+
+  // Listen for order status changes
+  var prevSt = {};
+  db.ref("orders").on("value", function(snap){
+    var raw = snap.val() || {};
+    var user = null;
+    try{ user = JSON.parse(localStorage.getItem("sliceDelightUser")); }catch(e){}
+    if(!user) return;
+
+    Object.keys(raw).forEach(function(k){
+      var o = raw[k]; if(!o) return;
+      var mine = (user.phone && (o.phone === user.phone || o.customerPhone === user.phone));
+      if(!mine && user.email) mine = (o.email === user.email);
+      if(!mine) return;
+
+      var oid = o.id || o.orderId || k;
+      var prev = prevSt[oid], curr = o.status || "pending";
+
+      if(prev && prev !== curr){
+        var t="", b="";
+        if(curr==="accepted"){ t="✅ Order Accepted!"; b=oid+" confirmed. Wait: "+(o.waitTime||"20")+" min"; }
+        else if(curr==="preparing"){ t="👨‍🍳 Preparing!"; b=oid+" is being prepared"; }
+        else if(curr==="outfordelivery"){ t="🏍️ On the Way!"; b=oid+" is out for delivery"; }
+        else if(curr==="delivered"){ t="😋 Delivered!"; b=oid+" has been delivered!"; }
+        else if(curr==="rejected"){ t="❌ Cancelled"; b=oid+" was cancelled. Refund in 1-2 days."; }
+
+        if(t){
+          if(Notification.permission==="granted") new Notification(t,{body:b,tag:'sd-'+oid});
+          if(typeof APP!=="undefined") APP.showNotif(t,b,"order");
+        }
+      }
+      prevSt[oid] = curr;
+    });
+  });
+
+  // Listen for announcements
+  var lastAnn=0, firstAnn=true;
+  db.ref("announcements").on("value",function(snap){
+    var d=snap.val(); if(!d)return;
+    var arr=Array.isArray(d)?d:Object.values(d);
+    var vis=arr.filter(function(a){return a&&a.show!==false});
+    if(!firstAnn&&vis.length>lastAnn){
+      var latest=vis.sort(function(a,b){return(b.ts||0)-(a.ts||0)})[0];
+      if(latest&&latest.title){
+        if(Notification.permission==="granted") new Notification("📢 "+latest.title,{body:latest.msg||"",tag:'sd-ann-'+Date.now()});
+        if(typeof APP!=="undefined") APP.showNotif("📢 "+latest.title,latest.msg||"","promo");
+        if(typeof S!=="undefined") S.toast("📢 "+latest.title);
+      }
+    }
+    lastAnn=vis.length; firstAnn=false;
+  });
+
+  // Request permission & init
+  if("Notification" in window && Notification.permission==="default"){
+    setTimeout(function(){ Notification.requestPermission().then(function(p){ if(p==="granted") initFCM(); }); },5000);
+  } else if(Notification.permission==="granted"){ setTimeout(initFCM,3000); }
+
+  var origAuth = (typeof S !== "undefined") ? S.onAuthComplete : null;
+  if(typeof S !== "undefined"){
+    S.onAuthComplete = function(){ if(origAuth) origAuth(); setTimeout(initFCM,2000); };
+  }
 })();
 </script>
 </body>
